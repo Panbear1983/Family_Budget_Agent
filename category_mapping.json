@@ -1,0 +1,44 @@
+{
+  "version": "2.0",
+  "last_updated": "2025-10-15",
+  "description": "Category mapping: Peter + Dolly MonnyReport → 2025年開銷表（NT）",
+  
+  "person_specific_mappings": {
+    "peter": {
+      "Transportation": "交通費",
+      "Food": "伙食費",
+      "Leisure & Entertainment": "休閒/娛樂",
+      "Home & Housing": "家務",
+      "Pet": "阿幫",
+      "Others": "其它"
+    },
+    
+    "wife": {
+      "交通": "交通費",
+      "吃吃喝喝": "伙食費",
+      "交際娛樂": "休閒/娛樂",
+      "美妝保養": "家務",
+      "愛美治裝": "家務",
+      "電話費": "家務",
+      "醫療保健": "家務",
+      "家用生活雜物": "家務",
+      "幫比": "阿幫",
+      "分期付款": "其它"
+    }
+  },
+  
+  "llm_fallback": {
+    "enabled": true,
+    "model": "qwen3:8b",
+    "confidence_threshold": 0.8,
+    "description": "Use LLM if category not found in mappings above"
+  },
+  
+  "notes": {
+    "updated_for": "Peter & Dolly's actual MonnyReport categories",
+    "peter_uses": "English categories (Transportation, Food, etc.)",
+    "dolly_uses": "Traditional Chinese categories (交通, 吃吃喝喝, etc.)",
+    "annual_budget_uses": "Traditional Chinese (交通費, 伙食費, 休閒/娛樂, 家務, 阿幫, 其它)",
+    "dolly_家務_note": "Dolly has 5 categories that all map to 家務: 美妝保養, 愛美治裝, 電話費, 醫療保健, 家用生活雜物"
+  }
+}
