@@ -16,7 +16,7 @@ import config
 from rich.console import Console
 
 # Import utility functions
-from utils.view_sheets import display_monthly_sheet, display_annual_summary
+from utils.view_sheets import display_monthly_sheet, display_monthly_sheet_from_file, display_annual_summary
 from utils.edit_cells import main as edit_cells_main
 
 def print_header():
@@ -52,16 +52,21 @@ def initialize_system():
     
     annual_mgr = registry.get_module('AnnualManager', config={
         'onedrive_path': config.ONEDRIVE_PATH,
-        'template_file': 'TEMPLATE_年開銷表.xlsx',
+        'template_file': '20XX年開銷表（NT）.xlsx',
         'auto_create': True
     })
     
     # Check/create annual file
     budget_file = annual_mgr.get_active_budget_file()
     
-    print(f"\n✅ 系統準備完成! Active budget: {os.path.basename(budget_file)}\n")
+    # Get multi-year files for read-only features (current + previous year)
+    budget_files = annual_mgr.get_multi_year_files(num_years=2)
     
-    return orchestrator, merger, annual_mgr
+    print(f"\n✅ 系統準備完成!")
+    print(f"   Current year: {os.path.basename(budget_file)}")
+    print(f"   Multi-year analysis: {len(budget_files)} year(s) loaded\n")
+    
+    return orchestrator, merger, annual_mgr, budget_files
 
 def main_menu():
     """Display main menu"""
@@ -78,21 +83,50 @@ def main_menu():
     choice = input("\n👉 請選擇 (Choose): ").strip()
     return choice
 
-def view_budget_workflow():
-    """View 2025年開銷表（NT） with month navigation"""
+def view_budget_workflow(budget_files):
+    """View budget with multi-year support (2025+)"""
     console = Console()
+    
+    # Detect available years from files (2025 onwards only)
+    available_years = []
+    for file in budget_files:
+        year = os.path.basename(file)[:4]
+        if year.isdigit():
+            year_int = int(year)
+            if year_int >= 2025:  # Filter: Only 2025 and later
+                available_years.append(year_int)
+    available_years.sort()
+    
+    # If no years available after filtering, show message
+    if not available_years:
+        print("\n⚠️  沒有可用的預算年份 (No budget years available for 2025+)")
+        input("\n按 Enter 返回...")
+        return
+    
     while True:
-        print("\n📊 查看 2025 年預算表 (VIEW 2025 BUDGET)\n")
+        print("\n📊 查看預算表 (VIEW BUDGET)\n")
         print("="*100 + "\n")
         
         months = ['一月', '二月', '三月', '四月', '五月', '六月', 
                  '七月', '八月', '九月', '十月', '十一月', '十二月']
         
-        print("月份選擇 (Select Month):\n")
-        for i, month in enumerate(months, 1):
-            console.print(f"   [[green]{i:2d}[/green]] {month}")
+        option_num = 1
+        month_map = {}  # Map option number to (year, month, file_path)
         
-        console.print(f"\n   [[green]13[/green]] 📊 年度總覽 (Year Summary)")
+        # Show months grouped by year
+        for year in available_years:
+            console.print(f"\n   [yellow]─── {year} 年 ───[/yellow]")
+            
+            # Find file for this year
+            year_file = next((f for f in budget_files if f"{year}年" in f), None)
+            
+            for month in months:
+                console.print(f"   [[green]{option_num:2d}[/green]] {year}-{month}")
+                month_map[str(option_num)] = (year, month, year_file)
+                option_num += 1
+        
+        console.print(f"\n   [[green]{option_num}[/green]] 📊 多年度總覽 (Multi-Year Summary)")
+        summary_option = str(option_num)
         console.print(f"   [[green] x[/green]] 返回 (Back)")
         
         print("\n" + "="*100)
@@ -100,27 +134,35 @@ def view_budget_workflow():
         
         if choice == 'x':
             return
-        elif choice in [str(i) for i in range(1, 13)]:
-            month_num = int(choice)
-            months = ['一月', '二月', '三月', '四月', '五月', '六月', 
-                     '七月', '八月', '九月', '十月', '十一月', '十二月']
-            sheet_name = months[month_num - 1]
+        elif choice in month_map:
+            year, month, file_path = month_map[choice]
             
+            if file_path and os.path.exists(file_path):
+                print("\n" + "="*100)
+                print(f"  📄 {year}-{month}".center(100))
+                print("="*100 + "\n")
+                
+                display_monthly_sheet_from_file(file_path, month)
+                
+                print("\n" + "="*100 + "\n")
+            else:
+                print(f"\n❌ 文件不存在: {year}年開銷表")
+                input("\n按 Enter 繼續...")
+        
+        elif choice == summary_option:
             print("\n" + "="*100)
-            print(f"  📄 {sheet_name} (MONTH {month_num})".center(100))
+            print("  📊 多年度總覽 (MULTI-YEAR SUMMARY)".center(100))
             print("="*100 + "\n")
             
-            display_monthly_sheet(sheet_name)
+            # Show summary for each available year (2025+ only)
+            for year_file in budget_files:
+                year = os.path.basename(year_file)[:4]
+                if year.isdigit() and int(year) >= 2025:  # Only 2025+
+                    console.print(f"\n[bold blue]{year} 年度總覽:[/bold blue]")
+                    display_annual_summary(year_file)  # Pass file path
+                    print()
             
-            print("\n" + "="*100 + "\n")
-        elif choice == '13':
-            print("\n" + "="*100)
-            print("  📊 年度總覽 (ANNUAL SUMMARY)".center(100))
-            print("="*100)
-            
-            display_annual_summary()
-            
-            print("\n" + "="*100 + "\n")
+            print("="*100 + "\n")
         
         # No input() needed - loop continues automatically
 
@@ -258,13 +300,13 @@ def update_monthly_workflow(merger, annual_mgr):
         else:
             input("\n❌ 無效選擇 (Invalid choice). Press Enter...")
 
-def budget_chat_workflow(orchestrator, annual_mgr):
-    """Enhanced budget chat with visual capabilities"""
+def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
+    """Enhanced budget chat with multi-year visual capabilities"""
     print_header()
     print("💬 預算分析對話 (BUDGET CHAT & INSIGHTS)\n")
     print("="*100 + "\n")
     
-    # Attempt to load enhanced insights module
+    # Attempt to load enhanced insights module with multi-year support
     enhanced_mode = False
     chat_module = None
     ai_chat = None
@@ -272,15 +314,27 @@ def budget_chat_workflow(orchestrator, annual_mgr):
     try:
         from core.module_registry import registry
         from modules.insights.ai_chat import AIChat
+        from modules.insights.multi_year_data_loader import MultiYearDataLoader
+        
+        # Use multi-year data loader
+        multi_data_loader = MultiYearDataLoader(budget_files)
         
         chat_module = registry.get_module('BudgetChat', config={
             'budget_file': annual_mgr.get_active_budget_file()
         })
+        
+        # Replace data loader with multi-year version
+        chat_module.data_loader = multi_data_loader
+        chat_module.trend_analyzer.data_loader = multi_data_loader
+        chat_module.terminal_graph.data_loader = multi_data_loader
+        chat_module.gui_graph.data_loader = multi_data_loader
+        chat_module.insight_generator.data_loader = multi_data_loader
+        
         chat_module.set_orchestrator(orchestrator)
         
-        # Initialize AI Chat controller (text-only mode)
+        # Initialize AI Chat controller with multi-year data
         ai_chat = AIChat(
-            data_loader=chat_module.data_loader,
+            data_loader=multi_data_loader,
             orchestrator=orchestrator,
             context_manager=chat_module.context_manager,
             insight_generator=chat_module.insight_generator,
@@ -288,15 +342,26 @@ def budget_chat_workflow(orchestrator, annual_mgr):
         )
         
         enhanced_mode = True
-        print("✅ Enhanced insights mode activated (with AI Chat!)\n")
+        
+        # Show year range
+        min_year, max_year = multi_data_loader.get_year_range()
+        if min_year and max_year:
+            print(f"✅ Enhanced insights mode (Multi-Year: {min_year}-{max_year})\n")
+        else:
+            print("✅ Enhanced insights mode activated (with AI Chat!)\n")
+            
     except Exception as e:
-        print("⚠️  Enhanced insights module not available")
+        print("⚠️  Multi-year insights module not available")
         print(f"   Using basic chat mode (Reason: {e})\n")
+        import traceback
+        traceback.print_exc()
         enhanced_mode = False
     
-    # Get available data
+    # Get available data (filter to 2025+ only)
     if enhanced_mode:
-        available_months = list(chat_module.data_loader.load_all_data().keys())
+        all_months = list(chat_module.data_loader.load_all_data().keys())
+        # Filter: Only show months from 2025 onwards
+        available_months = [m for m in all_months if not m.startswith('2024')]
         stats = chat_module.data_loader.get_summary_stats()
         categories = list(stats['by_category'].keys()) if stats else ['伙食费', '交通费', '休闲/娱乐']
     else:
@@ -401,7 +466,7 @@ def budget_chat_workflow(orchestrator, annual_mgr):
     
     # Return directly to main menu (no extra Enter needed)
 
-def system_tools():
+def system_tools(annual_mgr):
     """System tools and settings"""
     console = Console()
     print_header()
@@ -412,6 +477,7 @@ def system_tools():
     console.print("   [[green]2[/green]] 查看 LLM 設定 (View LLM Config)")
     console.print("   [[green]3[/green]] 測試 OneDrive 連接 (Test OneDrive)")
     console.print("   [[green]4[/green]] 重新載入模組 (Reload Module)")
+    console.print("   [[green]5[/green]] 🆕 創建下一年預算表 (Create Next Year Budget)")
     console.print("   [[green]x[/green]] 返回 (Back)")
     
     choice = input("\n選擇 (Choose): ").strip()
@@ -440,6 +506,9 @@ def system_tools():
             registry.reload_module(module_name)
             print(f"✅ Reloaded {module_name}")
     
+    elif choice == '5':
+        create_next_year_budget(annual_mgr)
+    
     elif choice == 'x':
         return  # Return directly without extra Enter
     
@@ -447,10 +516,64 @@ def system_tools():
     if choice != 'x':
         input("\n按 Enter 返回...")
 
+def create_next_year_budget(annual_mgr):
+    """Create next year's budget file from template"""
+    from datetime import datetime
+    
+    current_year = datetime.now().year
+    next_year = current_year + 1
+    
+    print(f"\n🆕 創建 {next_year} 年預算表 (Create {next_year} Budget File)")
+    print("="*100 + "\n")
+    
+    # Check if next year file already exists
+    next_year_file = annual_mgr.get_budget_file_path(next_year)
+    
+    if os.path.exists(next_year_file):
+        print(f"⚠️  {next_year} 年預算表已存在!")
+        print(f"   檔案: {os.path.basename(next_year_file)}")
+        
+        overwrite = input(f"\n是否重新創建? (覆蓋現有檔案) [y/N]: ").strip().lower()
+        if overwrite != 'y':
+            print("\n❌ 取消操作")
+            return
+        
+        # Create backup before overwriting
+        import shutil
+        backup_file = next_year_file.replace('.xlsx', f'_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
+        shutil.copy2(next_year_file, backup_file)
+        print(f"  💾 已備份至: {os.path.basename(backup_file)}")
+    
+    # Check if template exists
+    template_path = os.path.join(config.ONEDRIVE_PATH, annual_mgr.template_file)
+    
+    if not os.path.exists(template_path):
+        print(f"❌ 模板檔案不存在: {annual_mgr.template_file}")
+        print(f"   預期位置: {template_path}")
+        print("\n💡 請確保模板檔案存在於 OneDrive 目錄中")
+        return
+    
+    try:
+        print(f"\n🔄 從模板創建 {next_year} 年預算表...")
+        print(f"   模板: {annual_mgr.template_file}")
+        
+        # Create the new year file
+        created_file = annual_mgr.create_annual_budget(next_year)
+        
+        print(f"\n✅ 成功! {next_year} 年預算表已創建")
+        print(f"   檔案: {os.path.basename(created_file)}")
+        print(f"   路徑: {created_file}")
+        print(f"\n☁️  OneDrive 將自動同步此檔案")
+        
+    except Exception as e:
+        print(f"\n❌ 創建失敗: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
 def main():
     """Main program loop"""
     # Initialize
-    orchestrator, merger, annual_mgr = initialize_system()
+    orchestrator, merger, annual_mgr, budget_files = initialize_system()
     
     if not orchestrator:
         print("\n❌ System initialization failed")
@@ -464,15 +587,15 @@ def main():
         choice = main_menu()
         
         if choice == '1':
-            view_budget_workflow()
+            view_budget_workflow(budget_files)
         elif choice == '2':
             update_monthly_workflow(merger, annual_mgr)
         elif choice == '3':
-            budget_chat_workflow(orchestrator, annual_mgr)
+            budget_chat_workflow(orchestrator, annual_mgr, budget_files)
         elif choice == '4':
-            system_tools()
+            system_tools(annual_mgr)
         elif choice == 'x':
-            print("\n👋 再見! Goodbye!\n")
+            print("\n👋 再見魯蛇🐍! GoodbyeeeeEEEeeee111111...!\n")
             sys.exit(0)
         else:
             input("\n❌ 無效選擇 (Invalid choice). Press Enter...")

@@ -50,6 +50,11 @@ class VisualReportGenerator:
     def show_category_breakdown_table(self, insights: Dict) -> None:
         """Display category breakdown as a rich table"""
         
+        # Handle error case
+        if 'error' in insights:
+            self.console.print(f"\n[red]❌ {insights['error']}[/red]\n")
+            return
+        
         table = Table(
             title=f"📂 {insights['month']} 分類支出統計",
             box=box.DOUBLE,
@@ -94,6 +99,12 @@ class VisualReportGenerator:
     
     def show_monthly_comparison_table(self, comparison: Dict) -> None:
         """Display month-to-month comparison table"""
+        
+        # Handle error case
+        if 'error' in comparison:
+            console = Console()
+            console.print(f"\n[red]❌ {comparison['error']}[/red]\n")
+            return
         
         table = Table(
             title=f"⚖️  {comparison['month1']} vs {comparison['month2']} 對比",

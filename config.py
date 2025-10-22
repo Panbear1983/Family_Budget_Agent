@@ -69,7 +69,7 @@ MERGE_CONFIG = {
 
 ANNUAL_CONFIG = {
     "auto_create": True,             # Auto-create budget file for new year
-    "template_file": "TEMPLATE_年開銷表.xlsx",
+    "template_file": "20XX年開銷表（NT）.xlsx",
     "naming_pattern": "{year}年開銷表（NT）.xlsx",
     "archive_old_years": True,       # Move old years to archive/
     "archive_path": "archive/",

@@ -15,16 +15,15 @@ class TrendAnalyzer:
         """Analyze trend for a specific category"""
         all_data = self.data_loader.load_all_data()
         
-        month_order = ['一月', '二月', '三月', '四月', '五月', '六月',
-                      '七月', '八月', '九月', '十月', '十一月', '十二月']
+        # Get months in chronological order (supports multi-year format like "2025-一月")
+        available_months = sorted(all_data.keys())
         
         trend_data = []
-        for month in month_order:
-            if month in all_data:
-                df = all_data[month]
-                if 'category' in df.columns and 'amount' in df.columns:
-                    cat_total = df[df['category'] == category]['amount'].sum()
-                    trend_data.append({'month': month, 'amount': cat_total})
+        for month_key in available_months:
+            df = all_data[month_key]
+            if 'category' in df.columns and 'amount' in df.columns:
+                cat_total = df[df['category'] == category]['amount'].sum()
+                trend_data.append({'month': month_key, 'amount': cat_total})
         
         # Calculate trend direction
         if len(trend_data) >= 2:

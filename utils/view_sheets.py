@@ -15,8 +15,162 @@ import config
 
 EXCEL_FILE_PATH = config.BUDGET_PATH
 
+def display_monthly_sheet_from_file(file_path, sheet_name):
+    """Display a monthly sheet from specific file with rich formatting"""
+    console = Console()
+    
+    # Read the sheet
+    df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
+    
+    # Find header row (contains "日期：", "星期:")
+    header_row_idx = None
+    for idx, row in df.iterrows():
+        if '日期' in str(row.iloc[0]) and '星期' in str(row.iloc[1]):
+            header_row_idx = idx
+            break
+    
+    if header_row_idx is None:
+        console.print(f"[red]Error: Could not find header row in sheet '{sheet_name}'[/red]")
+        return
+    
+    # Create rich table with vertical dividers and border
+    from rich import box as rich_box
+    
+    table = Table(show_header=True, header_style="bold blue", show_lines=False, box=rich_box.SQUARE, padding=(0, 1))
+    
+    # Add columns with compact widths and alignment
+    table.add_column("日期", width=12, justify="left")
+    table.add_column("星期", width=6, justify="center")
+    table.add_column("交通費", width=8, justify="right")
+    table.add_column("伙食費", width=8, justify="right")
+    table.add_column("休閒/娛樂", width=10, justify="right")
+    table.add_column("家務", width=6, justify="right")
+    table.add_column("阿幫", width=6, justify="right")
+    table.add_column("其它", width=6, justify="right")
+    table.add_column("總計", width=10, justify="right", style="green")
+    
+    # Track monthly grand total from 單項總額 row
+    monthly_grand_total = None
+    
+    # Collect all rows first to determine section breaks
+    rows_to_add = []
+    
+    def format_currency(val):
+        if pd.isna(val) or val == '' or val == 'nan':
+            return ''
+        try:
+            num = float(val)
+            return f'{num:,.0f}' if num != 0 else ''
+        except:
+            return ''
+    
+    # Process rows starting from header row + 1
+    for idx in range(header_row_idx + 1, len(df)):
+        row = df.iloc[idx]
+        
+        # Stop at '年度明細表' section
+        if '年度明細表' in str(row.iloc[0]):
+            break
+        
+        # Skip completely empty rows
+        is_empty = True
+        for i in range(len(row)):
+            if pd.notna(row.iloc[i]) and str(row.iloc[i]).strip() != '':
+                is_empty = False
+                break
+        if is_empty:
+            continue
+        
+        # Format row data
+        date_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ''
+        day_cell = str(row.iloc[1]) if pd.notna(row.iloc[1]) else ''
+        
+        # Check for summary rows
+        is_weekly = '周總額' in date_cell or '周总额' in date_cell
+        is_monthly = '單項總額' in date_cell or '单项总额' in date_cell
+        is_summary = is_weekly or is_monthly
+        
+        # Skip rows without a date (except summary rows)
+        if not date_cell or date_cell == 'nan':
+            if not is_summary:
+                continue
+        
+        # Extract values
+        transport = format_currency(row.iloc[3]) if len(row) > 3 else ''
+        food = format_currency(row.iloc[4]) if len(row) > 4 else ''
+        leisure = format_currency(row.iloc[5]) if len(row) > 5 else ''
+        housework = format_currency(row.iloc[6]) if len(row) > 6 else ''
+        abang = format_currency(row.iloc[7]) if len(row) > 7 else ''
+        other = format_currency(row.iloc[8]) if len(row) > 8 else ''
+        daily_total = format_currency(row.iloc[10]) if len(row) > 10 else ''
+        
+        # Track monthly total
+        if is_monthly:
+            monthly_grand_total = daily_total
+        
+        # Collect rows with type information
+        if is_monthly:
+            rows_to_add.append({
+                'cells': [date_cell, day_cell, transport, food, leisure, housework, abang, other, daily_total],
+                'type': 'monthly_total'
+            })
+        elif is_weekly:
+            rows_to_add.append({
+                'cells': [date_cell, day_cell, transport, food, leisure, housework, abang, other, daily_total],
+                'type': 'weekly_total'
+            })
+        else:
+            rows_to_add.append({
+                'cells': [date_cell[:10] if len(date_cell) > 10 else date_cell, day_cell, transport, food, leisure, housework, abang, other, daily_total],
+                'type': 'regular'
+            })
+    
+    # Add rows to table with section breaks
+    for i, row_data in enumerate(rows_to_add):
+        # Check if next row is monthly total (to add line before it)
+        next_is_monthly = i + 1 < len(rows_to_add) and rows_to_add[i + 1]['type'] == 'monthly_total'
+        
+        # Determine styling and end_section
+        if row_data['type'] == 'monthly_total':
+            # Monthly total: red text
+            table.add_row(
+                f"[red]{row_data['cells'][0]}[/red]",
+                row_data['cells'][1],
+                f"[red]{row_data['cells'][2]}[/red]",
+                f"[red]{row_data['cells'][3]}[/red]",
+                f"[red]{row_data['cells'][4]}[/red]",
+                f"[red]{row_data['cells'][5]}[/red]",
+                f"[red]{row_data['cells'][6]}[/red]",
+                f"[red]{row_data['cells'][7]}[/red]",
+                f"[bold red]{row_data['cells'][8]}[/bold red]"
+            )
+        elif row_data['type'] == 'weekly_total':
+            # Weekly total: yellow text, add separator if followed by monthly total
+            table.add_row(
+                f"[yellow]{row_data['cells'][0]}[/yellow]",
+                row_data['cells'][1],
+                f"[yellow]{row_data['cells'][2]}[/yellow]",
+                f"[yellow]{row_data['cells'][3]}[/yellow]",
+                f"[yellow]{row_data['cells'][4]}[/yellow]",
+                f"[yellow]{row_data['cells'][5]}[/yellow]",
+                f"[yellow]{row_data['cells'][6]}[/yellow]",
+                f"[yellow]{row_data['cells'][7]}[/yellow]",
+                f"[bold yellow]{row_data['cells'][8]}[/bold yellow]",
+                end_section=next_is_monthly
+            )
+        else:
+            # Regular data row: add separator before monthly total
+            table.add_row(*row_data['cells'], end_section=next_is_monthly)
+    
+    # Display table
+    console.print(table)
+    
+    # Show monthly total if found
+    if monthly_grand_total:
+        console.print(f"\n[bold green]月總額 (Monthly Total): NT$ {monthly_grand_total}[/bold green]")
+
 def display_monthly_sheet(sheet_name):
-    """Display a monthly sheet with rich formatting"""
+    """Display a monthly sheet with rich formatting (uses current year file)"""
     console = Console()
     
     # Read the sheet
@@ -187,7 +341,7 @@ def display_monthly_sheet(sheet_name):
             
             rows_to_add.append({
                 'cells': [date_cell, day_cell, *formatted_expenses, total_cell],
-                'style': 'bold yellow',
+                'style': 'bold red',
                 'type': 'monthly_total'
             })
             
@@ -199,15 +353,17 @@ def display_monthly_sheet(sheet_name):
                 'type': 'regular'
             })
     
-    # Add rows to table with section breaks around weekly totals
+    # Add rows to table with section breaks around weekly totals and before monthly total
     for i, row_data in enumerate(rows_to_add):
         # Check if next row is a weekly total (to add line before it)
         next_is_weekly = i + 1 < len(rows_to_add) and rows_to_add[i + 1]['type'] == 'weekly_total'
         # Check if current row is a weekly total (to add line after it)
         is_weekly = row_data['type'] == 'weekly_total'
+        # Check if next row is monthly total (to add line before it)
+        next_is_monthly = i + 1 < len(rows_to_add) and rows_to_add[i + 1]['type'] == 'monthly_total'
         
-        # Add end_section if this is the row before weekly total, or if this IS the weekly total
-        end_section = next_is_weekly or is_weekly
+        # Add end_section if this is the row before weekly total, or if this IS the weekly total, or if next row is monthly total
+        end_section = next_is_weekly or is_weekly or next_is_monthly
         
         if row_data['style']:
             table.add_row(*row_data['cells'], style=row_data['style'], end_section=end_section)
@@ -221,12 +377,15 @@ def display_monthly_sheet(sheet_name):
         grand_total_str = f'{monthly_grand_total:,}'
         console.print(f"\n💰 [bold yellow]月總金額 / Monthly Grand Total: NT$ {grand_total_str}[/bold yellow]\n")
 
-def display_annual_summary():
-    """Display annual summary of all months"""
+def display_annual_summary(file_path=None):
+    """Display annual summary of all months with averages at the bottom"""
     console = Console()
     
+    # Use provided file path or default to EXCEL_FILE_PATH
+    excel_path = file_path if file_path else EXCEL_FILE_PATH
+    
     # Read all sheets
-    excel_file = pd.ExcelFile(EXCEL_FILE_PATH)
+    excel_file = pd.ExcelFile(excel_path)
     
     # Month names
     months = ['一月', '二月', '三月', '四月', '五月', '六月',
@@ -247,6 +406,18 @@ def display_annual_summary():
     summary_table.add_column("其它", width=8, justify="right")
     summary_table.add_column("月總計", width=12, justify="right", style="green")
     
+    # Track totals for calculating averages
+    category_totals = {
+        'transport': 0,
+        'food': 0,
+        'leisure': 0,
+        'household': 0,
+        'abang': 0,
+        'other': 0,
+        'monthly': 0
+    }
+    months_with_data = 0
+    
     # Display each month - NO CALCULATIONS, just show what's in Excel
     month_count = 0
     total_months = len([m for m in months if m in excel_file.sheet_names])
@@ -258,7 +429,7 @@ def display_annual_summary():
         month_count += 1
         is_last_month = (month_count == total_months)
             
-        df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=month, header=None)
+        df = pd.read_excel(excel_path, sheet_name=month, header=None)
         
         # Find 單項總額 row and show exactly what's in Excel
         for idx, row in df.iterrows():
@@ -276,6 +447,17 @@ def display_annual_summary():
                     try:
                         month_total = int(row.iloc[10])
                         month_total_str = f'{month_total:,}'
+                        
+                        # Track totals for averages
+                        category_totals['transport'] += transport
+                        category_totals['food'] += food
+                        category_totals['leisure'] += leisure
+                        category_totals['household'] += household
+                        category_totals['abang'] += abang
+                        category_totals['other'] += other
+                        category_totals['monthly'] += month_total
+                        months_with_data += 1
+                        
                     except (ValueError, TypeError):
                         month_total_str = '-'
                 else:
@@ -301,7 +483,7 @@ def display_annual_summary():
         # Use first available month sheet to get row 64 label
         for month in months:
             if month in excel_file.sheet_names:
-                df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=month, header=None)
+                df = pd.read_excel(excel_path, sheet_name=month, header=None)
                 if len(df) > 63:  # Row 64 is index 63
                     row_64 = df.iloc[63]
                     
@@ -340,6 +522,28 @@ def display_annual_summary():
                         end_section=True
                     )
                 break
+    
+    # Calculate and add averages row (in yellow)
+    if months_with_data > 0:
+        avg_transport = int(category_totals['transport'] / months_with_data)
+        avg_food = int(category_totals['food'] / months_with_data)
+        avg_leisure = int(category_totals['leisure'] / months_with_data)
+        avg_household = int(category_totals['household'] / months_with_data)
+        avg_abang = int(category_totals['abang'] / months_with_data)
+        avg_other = int(category_totals['other'] / months_with_data)
+        avg_monthly = int(category_totals['monthly'] / months_with_data)
+        
+        summary_table.add_row(
+            "平均值",
+            f'{avg_transport:,}' if avg_transport > 0 else '-',
+            f'{avg_food:,}' if avg_food > 0 else '-',
+            f'{avg_leisure:,}' if avg_leisure > 0 else '-',
+            f'{avg_household:,}' if avg_household > 0 else '-',
+            f'{avg_abang:,}' if avg_abang > 0 else '-',
+            f'{avg_other:,}' if avg_other > 0 else '-',
+            f'{avg_monthly:,}',
+            style="bold yellow"
+        )
     
     console.print(summary_table)
 

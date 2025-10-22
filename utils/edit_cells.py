@@ -258,108 +258,9 @@ def apply_dates(sheet_name, dates_to_fill):
     except Exception as e:
         console.print(f"\n[bold red]保存失敗 (Save failed): {e}[/bold red]\n")
 
-def edit_category_labels_workflow(sheet_name):
-    """Workflow for editing category labels in Row 2"""
-    console = Console()
-    
-    console.print(f"\n🏷️  [bold green]編輯類別標籤 (Edit Category Labels)[/bold green]")
-    console.print("="*100 + "\n")
-    
-    try:
-        # Read current category labels from Row 2, Columns C-I (indices 2-8)
-        df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=sheet_name, header=None)
-        
-        # Row 2 is index 1 (0-based)
-        row_2 = df.iloc[1]
-        
-        # Extract category labels from columns C-I (indices 2-8) - 7 editable columns
-        categories = []
-        for col_idx in range(2, 9):  # Columns C-I (all editable columns)
-            if col_idx < len(row_2):
-                label = str(row_2.iloc[col_idx]) if pd.notna(row_2.iloc[col_idx]) else '(empty)'
-                categories.append(label)
-            else:
-                categories.append('')
-        
-        # Display current categories
-        console.print("[cyan]目前類別 (Current Categories):[/cyan]\n")
-        for i, cat in enumerate(categories, 1):
-            console.print(f"   [[green]{i}[/green]] {cat}")
-        
-        console.print("\n   [[green]x[/green]] 取消 (Cancel)")
-        
-        # Prompt user to select category
-        choice = input("\n選擇要修改的類別 (Select category to edit): ").strip()
-        
-        if choice == 'x':
-            return
-        
-        try:
-            cat_num = int(choice)
-            if not (1 <= cat_num <= len(categories)):
-                console.print("[red]無效選擇 (Invalid choice)[/red]")
-                return
-        except ValueError:
-            console.print("[red]無效選擇 (Invalid choice)[/red]")
-            return
-        
-        # Prompt for new name
-        new_name = input(f"\n輸入新名稱 (Enter new name for category {cat_num}): ").strip()
-        
-        if not new_name:
-            console.print("[yellow]名稱不能為空 (Name cannot be empty)[/yellow]")
-            return
-        
-        # Preview change
-        console.print(f"\n[bold yellow]預覽更改 (Preview Change):[/bold yellow]")
-        console.print(f"  類別 {cat_num}: [red]{categories[cat_num - 1]}[/red] → [green]{new_name}[/green]")
-        
-        # Confirm
-        confirm = input("\n確認保存更改？(Confirm?) [y/N]: ").strip().lower()
-        
-        if confirm != 'y':
-            console.print("[yellow]已取消 (Cancelled)[/yellow]")
-            return
-        
-        # Apply change
-        apply_category_label(sheet_name, cat_num, new_name)
-        
-    except Exception as e:
-        console.print(f"[red]錯誤 (Error): {e}[/red]")
-
-def apply_category_label(sheet_name, cat_num, new_name):
-    """Apply category label change to ALL months (universal update)"""
-    console = Console()
-    
-    try:
-        # Load workbook
-        wb = openpyxl.load_workbook(EXCEL_FILE_PATH)
-        
-        # All month sheets
-        months = ['一月', '二月', '三月', '四月', '五月', '六月',
-                  '七月', '八月', '九月', '十月', '十一月', '十二月']
-        
-        # Row 2, Column C-I (cat_num: 1-7 maps to columns C-I, indices 3-9)
-        excel_row = 2
-        excel_col = 2 + cat_num  # C=3, D=4, E=5, F=6, G=7, H=8, I=9
-        
-        updated_count = 0
-        for month in months:
-            if month in wb.sheetnames:
-                ws = wb[month]
-                cell = ws.cell(row=excel_row, column=excel_col)
-                cell.value = new_name
-                updated_count += 1
-        
-        # Save
-        wb.save(EXCEL_FILE_PATH)
-        wb.close()
-        
-        console.print(f"\n[bold green]✅ 類別標籤已更新！(Category label updated!)[/bold green]")
-        console.print(f"[cyan]Applied to all {updated_count} months[/cyan]\n")
-        
-    except Exception as e:
-        console.print(f"\n[bold red]保存失敗 (Save failed): {e}[/bold red]\n")
+# REMOVED: edit_category_labels_workflow() and apply_category_label()
+# Reason: Prevents conflicts with hardcoded category mappings in categorizer and merger
+# Category labels should be set in the template file, not changed mid-year
 
 def edit_expenses_workflow(sheet_name):
     """Workflow for editing expenses with date + category selection"""
@@ -516,7 +417,12 @@ def apply_expense_edits(sheet_name, edits):
         console.print(f"\n[bold red]保存失敗 (Save failed): {e}[/bold red]\n")
 
 def main():
-    """Main entry point for cell-by-cell editor"""
+    """Main entry point for cell-by-cell editor
+    
+    Note: Date auto-fill is now handled automatically when creating new year files.
+    The autofill_dates_workflow() function is kept for manual re-filling if needed,
+    but is not exposed in the normal menu flow.
+    """
     console = Console()
     
     # Select month
@@ -524,28 +430,8 @@ def main():
     if not month:
         return
     
-    # Show edit type menu
-    while True:
-        console.print("\n" + "="*100)
-        console.print("選擇編輯類型 (Select Edit Type):\n")
-        console.print("   [[green]1[/green]] 📅 填充日期 (Auto-fill Dates)")
-        console.print("   [[green]2[/green]] 💰 編輯支出 (Edit Expenses)")
-        console.print("   [[green]3[/green]] 🏷️  編輯類別標籤 (Edit Category Labels)")
-        console.print("   [[green]x[/green]] 返回 (Back)")
-        console.print("\n" + "="*100)
-        
-        choice = input("\n選擇 (Choose): ").strip()
-        
-        if choice == 'x':
-            break
-        elif choice == '1':
-            autofill_dates_workflow(month)
-        elif choice == '2':
-            edit_expenses_workflow(month)
-        elif choice == '3':
-            edit_category_labels_workflow(month)
-        else:
-            console.print("[red]無效選擇 (Invalid choice)[/red]")
+    # Go directly to expense editing (dates are auto-filled on year creation)
+    edit_expenses_workflow(month)
 
 if __name__ == "__main__":
     main()

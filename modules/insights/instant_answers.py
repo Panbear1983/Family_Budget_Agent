@@ -4,6 +4,7 @@ Handles simple data queries for sub-second response times
 """
 
 from typing import Optional, Dict
+import json
 from .localized_templates import LocalizedTemplates as T
 
 class InstantAnswers:
@@ -79,7 +80,18 @@ class InstantAnswers:
         # "平均每月花多少？" / "Average monthly spending?"
         # ═══════════════════════════════════════════════════════════
         if '平均' in question or 'average' in q_lower or 'avg' in q_lower:
-            return self._average_monthly(language)
+            # Check if multi-month average (specific months)
+            if len(entities.get('months', [])) >= 2:
+                return self._multi_month_average(entities['months'], language)
+            else:
+                return self._average_monthly(language)
+        
+        # ═══════════════════════════════════════════════════════════
+        # Pattern 7: Multi-month sum
+        # "七月和八月總共多少？" / "Total of July and August?"
+        # ═══════════════════════════════════════════════════════════
+        if ('總' in question or 'total' in q_lower or 'sum' in q_lower) and len(entities.get('months', [])) >= 2:
+            return self._multi_month_sum(entities['months'], language)
         
         # Cannot answer instantly - needs LLM
         return None
@@ -218,6 +230,62 @@ class InstantAnswers:
         except Exception as e:
             return None
     
+    def _multi_month_average(self, months: list, language: str) -> str:
+        """Calculate average spending across specific months (Python-only, no LLM)"""
+        try:
+            totals = []
+            valid_months = []
+            
+            for month in months:
+                df = self.data_loader.load_month(month)
+                if df is not None and not df.empty and 'amount' in df.columns:
+                    total = df['amount'].sum()
+                    totals.append(total)
+                    valid_months.append(month)
+            
+            if not totals:
+                return None
+            
+            average = sum(totals) / len(totals)
+            
+            if language == 'zh':
+                month_list = '、'.join(valid_months)
+                detail = '、'.join([f"{m}: NT${t:,.0f}" for m, t in zip(valid_months, totals)])
+                return f"📊 {month_list} 的平均支出: NT${average:,.0f}\n\n   明細: {detail}"
+            else:
+                month_list = ', '.join(valid_months)
+                detail = ', '.join([f"{m}: NT${t:,.0f}" for m, t in zip(valid_months, totals)])
+                return f"📊 Average spending for {month_list}: NT${average:,.0f}\n\n   Breakdown: {detail}"
+        
+        except Exception as e:
+            return None
+    
+    def _multi_month_sum(self, months: list, language: str) -> str:
+        """Calculate total spending across specific months (Python-only, no LLM)"""
+        try:
+            total = 0
+            month_details = []
+            
+            for month in months:
+                df = self.data_loader.load_month(month)
+                if df is not None and not df.empty and 'amount' in df.columns:
+                    month_total = df['amount'].sum()
+                    total += month_total
+                    month_details.append(f"{month}: NT${month_total:,.0f}")
+            
+            if not month_details:
+                return None
+            
+            if language == 'zh':
+                detail = '、'.join(month_details)
+                return f"📊 總支出: NT${total:,.0f}\n\n   明細: {detail}"
+            else:
+                detail = ', '.join(month_details)
+                return f"📊 Total spending: NT${total:,.0f}\n\n   Breakdown: {detail}"
+        
+        except Exception as e:
+            return None
+    
     def _get_available_months(self) -> list:
         """Get list of available months"""
         try:
@@ -246,8 +314,8 @@ class InstantAnswers:
     
     def try_llm_with_summary(self, question: str, entities: Dict, language: str = 'zh') -> Optional[str]:
         """
-        TIER 2: Try answering with LLM using summary data
-        Used when Python fails but question seems simple
+        TIER 2: Try answering with LLM using PRE-CALCULATED summary data
+        LLM only interprets, does NOT calculate
         
         Args:
             question: User's question
@@ -263,38 +331,97 @@ class InstantAnswers:
         # Get summary stats
         stats = self.data_loader.get_summary_stats()
         
-        # Build focused prompt
+        # PRE-CALCULATE relevant values based on entities
+        calculated_results = {}
+        
+        # If specific months requested, pre-calculate their totals
+        if entities.get('months'):
+            monthly_totals = {}
+            for month in entities['months']:
+                df = self.data_loader.load_month(month)
+                if df is not None and not df.empty and 'amount' in df.columns:
+                    monthly_totals[month] = df['amount'].sum()
+            
+            calculated_results['monthly_totals'] = monthly_totals
+            
+            # If multiple months, pre-calculate average
+            if len(monthly_totals) > 1:
+                calculated_results['average'] = sum(monthly_totals.values()) / len(monthly_totals)
+                calculated_results['total'] = sum(monthly_totals.values())
+        
+        # If specific category requested, pre-calculate
+        if entities.get('category'):
+            category = entities['category']
+            cat_total = 0
+            for month_data in self.data_loader.load_all_data().values():
+                if 'category' in month_data.columns and 'amount' in month_data.columns:
+                    cat_total += month_data[month_data['category'] == category]['amount'].sum()
+            calculated_results['category_total'] = cat_total
+        
+        # Build focused prompt with PRE-CALCULATED results
         if language == 'zh':
-            prompt = f"""從預算摘要中回答問題。
+            prompt = f"""用自然語言解釋這些已計算的結果。
 
 問題: {question}
 
-預算摘要:
+已計算結果（請勿重新計算）:
+{json.dumps(calculated_results, ensure_ascii=False, indent=2) if calculated_results else '無特定計算'}
+
+摘要統計:
 - 總支出: NT${stats.get('total_spending', 0):,.0f}
-- 月份資料: {list(stats.get('by_month', {}).keys())}
+- 可用月份: {list(stats.get('by_month', {}).keys())}
 - 類別支出: {stats.get('by_category', {})}
 
-直接回答問題，只需要數字和簡短說明。"""
+任務: 用自然語言解釋結果。不要重新計算數字。"""
         else:
-            prompt = f"""Answer the question using budget summary.
+            prompt = f"""Explain these pre-calculated results in natural language.
 
 Question: {question}
 
-Budget summary:
+Pre-calculated Results (DO NOT recalculate):
+{json.dumps(calculated_results, indent=2) if calculated_results else 'No specific calculations'}
+
+Summary Statistics:
 - Total spending: NT${stats.get('total_spending', 0):,.0f}
 - Available months: {list(stats.get('by_month', {}).keys())}
 - Category spending: {stats.get('by_category', {})}
 
-Answer directly with numbers and brief explanation."""
+Task: Explain results in natural language. Do NOT recalculate numbers."""
         
-        # Use Qwen for fast extraction
+        # Use Qwen for fast interpretation (not calculation)
         answer = self.orchestrator.qwen.call_model(prompt)
+        
+        # Prepend calculated results to answer for transparency
+        if calculated_results:
+            if language == 'zh':
+                result_summary = "計算結果:\n"
+                if 'average' in calculated_results:
+                    result_summary += f"  平均: NT${calculated_results['average']:,.0f}\n"
+                if 'total' in calculated_results:
+                    result_summary += f"  總計: NT${calculated_results['total']:,.0f}\n"
+                if 'monthly_totals' in calculated_results:
+                    result_summary += "  明細:\n"
+                    for month, total in calculated_results['monthly_totals'].items():
+                        result_summary += f"    {month}: NT${total:,.0f}\n"
+                answer = result_summary + "\n" + answer
+            else:
+                result_summary = "Calculated Results:\n"
+                if 'average' in calculated_results:
+                    result_summary += f"  Average: NT${calculated_results['average']:,.0f}\n"
+                if 'total' in calculated_results:
+                    result_summary += f"  Total: NT${calculated_results['total']:,.0f}\n"
+                if 'monthly_totals' in calculated_results:
+                    result_summary += "  Breakdown:\n"
+                    for month, total in calculated_results['monthly_totals'].items():
+                        result_summary += f"    {month}: NT${total:,.0f}\n"
+                answer = result_summary + "\n" + answer
+        
         return answer
     
     def try_llm_with_full_data(self, question: str, entities: Dict, language: str = 'zh') -> str:
         """
-        TIER 3: Answer with LLM using full Excel data
-        Used for complex questions or when summary isn't enough
+        TIER 3: Answer with LLM using PRE-CALCULATED results from full Excel data
+        LLM only interprets, does NOT calculate
         
         Args:
             question: User's question
@@ -302,56 +429,108 @@ Answer directly with numbers and brief explanation."""
             language: Response language
         
         Returns:
-            Comprehensive answer from full data
+            Comprehensive answer with pre-calculated results
         """
         if not self.orchestrator:
             return "❌ LLM not available"
         
+        # PRE-CALCULATE all relevant statistics from full data
+        calculated_stats = {}
+        
         # Load full data for relevant month(s)
         if entities.get('month'):
-            full_data = self.data_loader.load_month(entities['month'])
-            if full_data is not None and not full_data.empty:
-                data_dict = full_data.to_dict('records')[:100]  # Limit to first 100 transactions
-            else:
-                data_dict = []
+            df = self.data_loader.load_month(entities['month'])
+            if df is not None and not df.empty and 'amount' in df.columns:
+                # Pre-calculate statistics
+                calculated_stats['month'] = entities['month']
+                calculated_stats['total'] = df['amount'].sum()
+                calculated_stats['count'] = len(df)
+                calculated_stats['average'] = df['amount'].mean()
+                calculated_stats['max'] = df['amount'].max()
+                calculated_stats['min'] = df['amount'].min()
+                
+                # Category breakdown if available
+                if 'category' in df.columns:
+                    calculated_stats['by_category'] = df.groupby('category')['amount'].sum().to_dict()
+                
+                # Sample transactions (for context, not calculation)
+                calculated_stats['sample_transactions'] = df.head(5)[['date', 'description', 'amount', 'category']].to_dict('records') if 'description' in df.columns else []
         else:
-            # Load all available data (limited)
+            # Multiple months
             all_data = self.data_loader.load_all_data()
-            data_dict = {}
-            for month, df in list(all_data.items())[:3]:  # Only last 3 months to avoid token limit
-                data_dict[month] = df.to_dict('records')[:20]  # 20 transactions per month
+            calculated_stats['months'] = list(all_data.keys())
+            calculated_stats['monthly_totals'] = {}
+            
+            for month, df in all_data.items():
+                if 'amount' in df.columns:
+                    calculated_stats['monthly_totals'][month] = df['amount'].sum()
+            
+            if calculated_stats['monthly_totals']:
+                calculated_stats['overall_total'] = sum(calculated_stats['monthly_totals'].values())
+                calculated_stats['overall_average'] = calculated_stats['overall_total'] / len(calculated_stats['monthly_totals'])
         
-        # Build comprehensive prompt
+        # Build comprehensive prompt with PRE-CALCULATED stats
         if language == 'zh':
-            prompt = f"""從完整的預算資料中回答問題。
+            prompt = f"""用完整的統計數據回答問題。所有數字已經計算好。
 
 問題: {question}
 
-完整資料:
-{data_dict}
+已計算統計（請勿重新計算）:
+{json.dumps(calculated_stats, ensure_ascii=False, indent=2)}
 
-要求:
-1. 直接從資料中提取答案
-2. 給出具體數字
-3. 簡短回答（不超過2句話）
+任務:
+1. 使用上面已計算的數字
+2. 用自然語言解釋
+3. 提供見解和背景
+4. 不要重新計算任何數字
 
 回答:"""
         else:
-            prompt = f"""Answer the question using full budget data.
+            prompt = f"""Answer the question using complete statistics. All numbers are pre-calculated.
 
 Question: {question}
 
-Full data:
-{data_dict}
+Pre-calculated Statistics (DO NOT recalculate):
+{json.dumps(calculated_stats, indent=2)}
 
-Requirements:
-1. Extract answer directly from data
-2. Provide specific numbers
-3. Brief answer (max 2 sentences)
+Tasks:
+1. Use the pre-calculated numbers above
+2. Explain in natural language
+3. Provide insights and context
+4. Do NOT recalculate any numbers
 
 Answer:"""
         
         # Use GPT-OSS for better reasoning with full data
         answer = self.orchestrator.gpt_oss.call_model(prompt)
+        
+        # Prepend key calculated results for transparency
+        if language == 'zh':
+            result_header = "📊 計算結果:\n"
+            if 'total' in calculated_stats:
+                result_header += f"  總支出: NT${calculated_stats['total']:,.0f}\n"
+            if 'average' in calculated_stats:
+                result_header += f"  平均: NT${calculated_stats['average']:,.0f}\n"
+            if 'count' in calculated_stats:
+                result_header += f"  交易筆數: {calculated_stats['count']}\n"
+            if 'monthly_totals' in calculated_stats:
+                result_header += "  月度明細:\n"
+                for month, total in list(calculated_stats['monthly_totals'].items())[:5]:
+                    result_header += f"    {month}: NT${total:,.0f}\n"
+            answer = result_header + "\n" + answer
+        else:
+            result_header = "📊 Calculated Results:\n"
+            if 'total' in calculated_stats:
+                result_header += f"  Total Spending: NT${calculated_stats['total']:,.0f}\n"
+            if 'average' in calculated_stats:
+                result_header += f"  Average: NT${calculated_stats['average']:,.0f}\n"
+            if 'count' in calculated_stats:
+                result_header += f"  Transaction Count: {calculated_stats['count']}\n"
+            if 'monthly_totals' in calculated_stats:
+                result_header += "  Monthly Breakdown:\n"
+                for month, total in list(calculated_stats['monthly_totals'].items())[:5]:
+                    result_header += f"    {month}: NT${total:,.0f}\n"
+            answer = result_header + "\n" + answer
+        
         return answer
 

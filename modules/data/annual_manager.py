@@ -59,7 +59,7 @@ class AnnualManager(BaseModule):
     
     def create_annual_budget(self, year: int):
         """
-        Create new annual budget file
+        Create new annual budget file with auto-filled dates
         Priority: Template > Clone previous > Create new
         """
         target_file = self.get_budget_file_path(year)
@@ -69,6 +69,8 @@ class AnnualManager(BaseModule):
             print(f"  📋 Using template: {self.template_file}")
             shutil.copy2(self.template_file, target_file)
             print(f"  ✅ Created from template: {target_file}")
+            # Auto-fill dates for all months
+            self.auto_fill_all_dates(target_file, year)
             return target_file
         
         # Option 2: Clone previous year
@@ -77,12 +79,16 @@ class AnnualManager(BaseModule):
             print(f"  📋 Cloning structure from {year - 1}")
             self.clone_and_clear(prev_year_file, target_file)
             print(f"  ✅ Created from {year - 1}: {target_file}")
+            # Auto-fill dates for all months
+            self.auto_fill_all_dates(target_file, year)
             return target_file
         
         # Option 3: Create from scratch
         print(f"  📋 Creating new structure from scratch")
         self.create_from_scratch(target_file)
         print(f"  ✅ Created new file: {target_file}")
+        # Auto-fill dates for all months
+        self.auto_fill_all_dates(target_file, year)
         return target_file
     
     def clone_and_clear(self, source_file: str, target_file: str):
@@ -155,6 +161,72 @@ class AnnualManager(BaseModule):
         
         wb.save(target_file)
     
+    def auto_fill_all_dates(self, target_file: str, year: int):
+        """
+        Automatically fill dates for all 12 months in the new year file
+        Uses datetime to determine what day of the week each month starts
+        Follows exact same logic as edit_cells.py autofill_dates_workflow
+        """
+        import calendar
+        
+        months = ['一月', '二月', '三月', '四月', '五月', '六月', 
+                 '七月', '八月', '九月', '十月', '十一月', '十二月']
+        
+        try:
+            wb = load_workbook(target_file)
+            
+            for month_idx, month_name in enumerate(months, start=1):
+                if month_name not in wb.sheetnames:
+                    continue
+                    
+                ws = wb[month_name]
+                
+                # Auto-detect what day of the week this month starts
+                first_date = datetime(year, month_idx, 1)
+                start_weekday = first_date.isoweekday()  # 1=Mon, 7=Sun
+                
+                # Get number of days in this month
+                days_in_month = calendar.monthrange(year, month_idx)[1]
+                
+                # Week blocks (EXACT SAME as edit_cells.py)
+                week_blocks = [
+                    (3, 9),    # Week 1: rows 3-9
+                    (11, 17),  # Week 2
+                    (19, 25),  # Week 3
+                    (27, 33),  # Week 4
+                    (35, 41),  # Week 5
+                    (43, 49),  # Week 6
+                ]
+                
+                # Fill dates (EXACT SAME logic as edit_cells.py)
+                week_idx = 0
+                day_idx = start_weekday - 1  # 0-6 (Mon=0, Sun=6)
+                
+                for day_num in range(1, days_in_month + 1):
+                    date_str = f"{year}-{month_idx:02d}-{day_num:02d}"
+                    
+                    if week_idx < len(week_blocks):
+                        start_row, end_row = week_blocks[week_idx]
+                        row_idx = start_row - 1 + day_idx
+                        
+                        # Write date to column A (SAME as edit_cells.py)
+                        ws.cell(row=row_idx + 1, column=1, value=date_str)
+                    
+                    # Move to next day (SAME logic)
+                    day_idx += 1
+                    if day_idx >= 7:  # New week
+                        day_idx = 0
+                        week_idx += 1
+                
+                print(f"  ✅ Auto-filled {days_in_month} dates for {month_name}")
+            
+            wb.save(target_file)
+            print(f"  📅 All dates auto-filled for {year}!")
+            
+        except Exception as e:
+            print(f"  ⚠️  Date auto-fill failed: {e}")
+            print(f"     You can still manually fill dates using '填充日期' menu")
+    
     def archive_old_year(self, year: int):
         """Move old year's budget to archive"""
         archive_dir = self.config.get('archive_path', 'archive')
@@ -167,4 +239,27 @@ class AnnualManager(BaseModule):
             archive_file = os.path.join(archive_dir, os.path.basename(old_file))
             shutil.move(old_file, archive_file)
             print(f"  📦 Archived {year} budget to {archive_file}")
+    
+    def get_multi_year_files(self, num_years: int = 2) -> list:
+        """
+        Get budget files for multiple years (current + previous)
+        
+        Args:
+            num_years: Number of years to load (default 2: current + previous)
+        
+        Returns:
+            List of file paths, sorted by year (oldest first)
+        """
+        current_year = datetime.now().year
+        years = list(range(current_year - num_years + 1, current_year + 1))
+        
+        files = []
+        for year in years:
+            file_path = self.get_budget_file_path(year)
+            if os.path.exists(file_path):
+                files.append(file_path)
+            else:
+                print(f"  ⚠️  {year} budget file not found (skipping)")
+        
+        return files
 

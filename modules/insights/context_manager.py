@@ -4,6 +4,8 @@ Context Manager - Manages conversation history and context
 
 from typing import List, Dict, Optional
 from datetime import datetime
+from pathlib import Path
+import json
 
 class ContextManager:
     """Manages conversation context and history"""
@@ -13,9 +15,14 @@ class ContextManager:
         self.max_history = max_history
         self.session_start = datetime.now()
         self.current_focus = None  # Current month/category being discussed
+        
+        # Usage logging for pattern learning
+        self.log_file = Path("data/usage_log.jsonl")
+        self.log_file.parent.mkdir(exist_ok=True)
+        print(f"  📊 Usage logging enabled: {self.log_file}")
     
     def add_interaction(self, question: str, answer: str, metadata: Dict = None):
-        """Add Q&A to history"""
+        """Add Q&A to history and log for pattern learning"""
         interaction = {
             'timestamp': datetime.now(),
             'question': question,
@@ -31,6 +38,9 @@ class ContextManager:
         
         # Update focus based on question
         self._update_focus(question)
+        
+        # Log for pattern learning
+        self._log_interaction(question, answer, metadata)
     
     def get_context_summary(self) -> str:
         """Get summary of recent conversation"""
@@ -82,4 +92,37 @@ class ContextManager:
             if cat in question:
                 self.current_focus = cat
                 return
+    
+    def _log_interaction(self, question: str, answer: str, metadata: Dict = None):
+        """Log interaction for pattern learning (append to JSONL file)"""
+        try:
+            log_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'question': question,
+                'answer_preview': answer[:200] if answer else '',  # First 200 chars
+                'question_type': metadata.get('type') if metadata else 'unknown',
+                'handler': metadata.get('handler') if metadata else 'unknown',
+                'entities': metadata.get('entities') if metadata else {},
+                'success': self._detect_success(answer)
+            }
+            
+            # Append to JSONL file (one JSON object per line)
+            with open(self.log_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
+        
+        except Exception as e:
+            # Don't let logging errors crash the agent
+            print(f"  ⚠️  Logging error: {e}")
+    
+    def _detect_success(self, answer: str) -> bool:
+        """Simple heuristic to detect if answer was successful"""
+        if not answer:
+            return False
+        
+        # Check for error indicators
+        error_indicators = ['error', 'sorry', '抱歉', '无法', '不能', '没有找到', 
+                          'not found', 'cannot', "can't", 'unable']
+        answer_lower = answer.lower()
+        
+        return not any(indicator in answer_lower for indicator in error_indicators)
 

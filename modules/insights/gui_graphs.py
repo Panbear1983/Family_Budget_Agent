@@ -73,6 +73,11 @@ class GUIGraphGenerator:
     
     def plot_pie_chart(self, insights: Dict) -> None:
         """Beautiful pie chart for category breakdown"""
+        # Handle error case
+        if 'error' in insights:
+            print(f"\n❌ {insights['error']}\n")
+            return
+        
         categories = sorted(
             insights['categories'].items(),
             key=lambda x: x[1],
@@ -153,6 +158,11 @@ class GUIGraphGenerator:
     
     def plot_comparison_grouped_bars(self, comparison: Dict) -> None:
         """Grouped bar chart for month comparison"""
+        # Handle error case
+        if 'error' in comparison:
+            print(f"\n❌ {comparison['error']}\n")
+            return
+        
         categories = list(comparison['category_changes'].keys())
         
         # Translate categories to English

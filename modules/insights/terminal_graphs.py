@@ -50,6 +50,11 @@ class TerminalGraphGenerator:
     
     def plot_category_horizontal_bar(self, insights: Dict) -> None:
         """Horizontal bar chart for category breakdown"""
+        # Handle error case
+        if 'error' in insights:
+            print(f"\n❌ {insights['error']}\n")
+            return
+        
         categories = sorted(
             insights['categories'].items(),
             key=lambda x: x[1],
@@ -109,6 +114,11 @@ class TerminalGraphGenerator:
     
     def plot_comparison_bars(self, comparison: Dict) -> None:
         """Side-by-side comparison chart"""
+        # Handle error case
+        if 'error' in comparison:
+            print(f"\n❌ {comparison['error']}\n")
+            return
+        
         categories = list(comparison['category_changes'].keys())
         
         # Translate to English
