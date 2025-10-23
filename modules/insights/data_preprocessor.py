@@ -88,8 +88,8 @@ class DataPreprocessor:
                 'avg_transaction': insights.get('avg_transaction', 0),
                 'top_category': max(insights.get('categories', {}).items(), 
                                   key=lambda x: x[1])[0] if insights.get('categories') else None,
-                'top_3_categories': dict(sorted(insights.get('categories', {}).items(), 
-                                               key=lambda x: x[1], reverse=True)[:3]),
+                'all_categories': dict(sorted(insights.get('categories', {}).items(), 
+                                               key=lambda x: x[1], reverse=True)),  # No truncation
                 'has_warnings': len(insights.get('warnings', [])) > 0
             }
         except Exception as e:
@@ -115,7 +115,7 @@ class DataPreprocessor:
                     comparison.get('category_changes', {}).items(),
                     key=lambda x: abs(x[1]),
                     reverse=True
-                )[:3])  # Top 3 biggest changes only
+                ))  # No truncation - show all changes
             }
         except Exception as e:
             return {'error': str(e)}
@@ -210,7 +210,7 @@ class DataPreprocessor:
             }
             
             return {
-                'anomalies': anomalies[:5],  # Top 5 unusual transactions
+                'anomalies': anomalies,  # No truncation - show all anomalies
                 'high_percentage_categories': high_pct_cats,
                 'category_breakdown': categories,
                 'total_spending': total,

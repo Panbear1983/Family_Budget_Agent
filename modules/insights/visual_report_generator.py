@@ -15,7 +15,7 @@ class VisualReportGenerator:
     def __init__(self):
         self.console = Console()
     
-    def show_monthly_table(self, month: str, df: pd.DataFrame, limit: int = 20) -> None:
+    def show_monthly_table(self, month: str, df: pd.DataFrame, limit: int = None) -> None:
         """Display monthly transactions as a rich table"""
         
         table = Table(
@@ -26,25 +26,20 @@ class VisualReportGenerator:
             title_style="bold magenta"
         )
         
-        table.add_column("日期", style="dim", width=12)
-        table.add_column("分類", style="cyan", width=12)
-        table.add_column("描述", width=35)
-        table.add_column("金額", justify="right", style="green")
-        table.add_column("人員", width=8)
+        table.add_column("日期", style="dim", width=20)
+        table.add_column("分類", style="cyan", width=30)
+        table.add_column("金額", justify="right", style="green", width=25)
         
-        # Add rows (limit for readability)
-        for idx, row in df.head(limit).iterrows():
+        # Add rows (no truncation - show all data)
+        rows_to_show = df if limit is None else df.head(limit)
+        for idx, row in rows_to_show.iterrows():
             table.add_row(
-                str(row.get('date', ''))[:10],
-                str(row.get('category', '')),
-                str(row.get('description', ''))[:35],
-                f"NT$ {row.get('amount', 0):,.0f}",
-                str(row.get('person', ''))
+                str(row.get('date', '')),  # Date
+                str(row.get('category', '')),  # Category
+                f"NT$ {row.get('amount', 0):,.0f}"  # Amount
             )
         
-        if len(df) > limit:
-            table.add_row("...", "...", f"+ {len(df)-limit} 筆交易", "...", "...")
-        
+        # No truncation summary - show all data
         self.console.print(table)
     
     def show_category_breakdown_table(self, insights: Dict) -> None:
@@ -62,10 +57,10 @@ class VisualReportGenerator:
             header_style="bold yellow"
         )
         
-        table.add_column("分類", style="cyan", width=15)
-        table.add_column("金額", justify="right", style="green", width=15)
-        table.add_column("占比", justify="right", style="magenta", width=10)
-        table.add_column("視覺化", width=35)
+        table.add_column("分類", style="cyan", width=20)
+        table.add_column("金額", justify="right", style="green", width=18)
+        table.add_column("占比", justify="right", style="magenta", width=12)
+        table.add_column("視覺化", width=40)
         
         total = insights['total_spending']
         categories = sorted(
@@ -113,11 +108,11 @@ class VisualReportGenerator:
             header_style="bold blue"
         )
         
-        table.add_column("分類", style="cyan", width=15)
-        table.add_column(comparison['month1'], justify="right", width=15)
-        table.add_column(comparison['month2'], justify="right", width=15)
-        table.add_column("變化", justify="right", width=15)
-        table.add_column("趨勢", justify="center", width=8)
+        table.add_column("分類", style="cyan", width=18)
+        table.add_column(comparison['month1'], justify="right", width=18)
+        table.add_column(comparison['month2'], justify="right", width=18)
+        table.add_column("變化", justify="right", width=18)
+        table.add_column("趨勢", justify="center", width=10)
         
         for cat, change in sorted(
             comparison['category_changes'].items(),

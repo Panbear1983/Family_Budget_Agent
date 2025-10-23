@@ -453,8 +453,8 @@ Task: Explain results in natural language. Do NOT recalculate numbers."""
                 if 'category' in df.columns:
                     calculated_stats['by_category'] = df.groupby('category')['amount'].sum().to_dict()
                 
-                # Sample transactions (for context, not calculation)
-                calculated_stats['sample_transactions'] = df.head(5)[['date', 'description', 'amount', 'category']].to_dict('records') if 'description' in df.columns else []
+                # Sample transactions (for context, not calculation) - no truncation
+                calculated_stats['sample_transactions'] = df[['date', 'description', 'amount', 'category']].to_dict('records') if 'description' in df.columns else []
         else:
             # Multiple months
             all_data = self.data_loader.load_all_data()
@@ -515,7 +515,7 @@ Answer:"""
                 result_header += f"  交易筆數: {calculated_stats['count']}\n"
             if 'monthly_totals' in calculated_stats:
                 result_header += "  月度明細:\n"
-                for month, total in list(calculated_stats['monthly_totals'].items())[:5]:
+                for month, total in calculated_stats['monthly_totals'].items():  # No truncation
                     result_header += f"    {month}: NT${total:,.0f}\n"
             answer = result_header + "\n" + answer
         else:
@@ -528,7 +528,7 @@ Answer:"""
                 result_header += f"  Transaction Count: {calculated_stats['count']}\n"
             if 'monthly_totals' in calculated_stats:
                 result_header += "  Monthly Breakdown:\n"
-                for month, total in list(calculated_stats['monthly_totals'].items())[:5]:
+                for month, total in calculated_stats['monthly_totals'].items():  # No truncation
                     result_header += f"    {month}: NT${total:,.0f}\n"
             answer = result_header + "\n" + answer
         

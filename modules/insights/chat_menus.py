@@ -15,10 +15,13 @@ def select_month(available_months: List[str]) -> str:
     print("\n可用月份 (Available months):")
     for i, month in enumerate(available_months, 1):
         print(f"   {i}. {month}")
+    print(f"   x. 返回主選單 (Back to Main Menu)")
     
-    choice = input(f"\n選擇月份 (1-{len(available_months)}) 或輸入月份名稱: ").strip()
+    choice = input(f"\n選擇月份 (1-{len(available_months)}, x) 或輸入月份名稱: ").strip().lower()
     
-    if choice.isdigit():
+    if choice == 'x':
+        raise ValueError("返回主選單")
+    elif choice.isdigit():
         idx = int(choice) - 1
         if 0 <= idx < len(available_months):
             return available_months[idx]
@@ -135,26 +138,13 @@ def visual_analysis_menu(chat_module, available_months: List[str], categories: L
             # Show category table
             chat_module.execute('show_category_table', month)
             
-            # Ask for transaction details
-            show_details = input("\n顯示交易明細表? (y/n): ").strip().lower()
-            if show_details == 'y':
-                print()
-                chat_module.execute('show_monthly_table', month)
+            # Show transaction details automatically (no y/n question)
+            print()
+            chat_module.execute('show_monthly_table', month)
+            print("\n✅ 交易明細已顯示")
             
-            # Ask for graph
-            print("\n圖表選項:")
-            print("  1. 終端圖表 (Terminal - ASCII)")
-            print("  2. GUI 圖表 (GUI - Beautiful)")
-            print("  3. 跳過 (Skip)")
-            
-            graph_choice = input("選擇 (1-3): ").strip()
-            
-            if graph_choice == '1':
-                chat_module.execute('plot_terminal', 'category_bar', month)
-            elif graph_choice == '2':
-                chat_module.execute('plot_gui', 'pie', month)
-            
-            input("\n按 Enter 繼續...")
+            # Go directly back to month selection menu (no Enter continue)
+            continue
         
         elif choice == '2':
             # Month comparison
@@ -168,24 +158,25 @@ def visual_analysis_menu(chat_module, available_months: List[str], categories: L
             print(f"\n⚖️  對比 {month1} vs {month2}...")
             
             # Show comparison table
-            chat_module.execute('show_comparison_table', month1, month2)
+            try:
+                result = chat_module.execute('show_comparison_table', month1, month2)
+                print(result if result else "✅ 對比表格已顯示")
+            except Exception as e:
+                print(f"❌ 對比表格顯示失敗: {e}")
             
-            # Ask for graph
-            show_graph = input("\n顯示對比圖表? (1=Terminal, 2=GUI, n=No): ").strip()
-            
-            if show_graph == '1':
-                chat_module.execute('plot_terminal', 'comparison', month1, month2)
-            elif show_graph == '2':
-                chat_module.execute('plot_gui', 'comparison', month1, month2)
-            
-            input("\n按 Enter 繼續...")
+            # Go directly back to visual analysis menu - no useless chart options
+            continue
         
         elif choice == '3':
             # Yearly summary
             print("\n📊 生成年度總覽...")
             
             # Show tables
-            chat_module.execute('show_yearly_table')
+            try:
+                result = chat_module.execute('show_yearly_table')
+                print(result if result else "✅ 年度總覽表格已顯示")
+            except Exception as e:
+                print(f"❌ 年度總覽表格顯示失敗: {e}")
             
             # Ask for graphs
             print("\n圖表選項:")
@@ -194,8 +185,12 @@ def visual_analysis_menu(chat_module, available_months: List[str], categories: L
             print("  3. 堆疊面積圖 (Stacked Area)")
             print("  4. 全部顯示 (Show All)")
             print("  5. 跳過 (Skip)")
+            print("  x. 返回主選單 (Back to Main Menu)")
             
-            graph_choice = input("選擇 (1-5): ").strip()
+            graph_choice = input("選擇 (1-5, x): ").strip().lower()
+            
+            if graph_choice == 'x':
+                return  # Go back to main menu
             
             if graph_choice in ['1', '4']:
                 print("\n1=Terminal, 2=GUI: ", end='')

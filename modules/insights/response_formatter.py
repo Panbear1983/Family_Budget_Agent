@@ -169,9 +169,9 @@ class ResponseFormatter:
         # Return formatted suggestions
         if suggestions:
             if language == 'zh':
-                return "💡 " + " | ".join(suggestions[:2])  # Max 2 suggestions
+                return "💡 " + " | ".join(suggestions)  # No truncation - show all suggestions
             else:
-                return "💡 " + " | ".join(suggestions[:2])
+                return "💡 " + " | ".join(suggestions)
         
         return ""
     

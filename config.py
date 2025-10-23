@@ -12,8 +12,8 @@ from datetime import datetime
 # ═══════════════════════════════════════════════════════════
 
 STRUCTURED_LLM = "qwen3:8b"      # Fast, structured tasks (parsing, categorization, data extraction)
-REASONING_LLM = "gpt-oss:20b"    # Deep reasoning (analysis, conversation, final insights)
-                                 # Dual-pipeline: Qwen extracts → GPT-OSS reasons
+REASONING_LLM = "qwen3:8b"       # Use Qwen for both structured and reasoning tasks
+                                 # Simplified: Qwen only for natural language routing to existing functions
 
 # Alternative models (uncomment to use):
 # REASONING_LLM = "qwen3:8b"       # Use Qwen for both (faster but less insightful)

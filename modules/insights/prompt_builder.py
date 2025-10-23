@@ -292,12 +292,9 @@ Briefly explain:
     # ═══════════════════════════════════════════════════════════════
     
     def _condense_data(self, data: dict) -> str:
-        """Condense data dict to string, limited length"""
+        """Condense data dict to string, no truncation"""
         data_str = str(data)
-        
-        if len(data_str) > self.max_data_length:
-            data_str = data_str[:self.max_data_length] + "..."
-        
+        # No truncation - return full data
         return data_str
     
     def _format_for_insight(self, data: dict) -> str:
@@ -332,7 +329,7 @@ Briefly explain:
             
             if stats.get('category_breakdown'):
                 parts.append("\n主要類別:")
-                for cat, amt in list(stats['category_breakdown'].items())[:3]:
+                for cat, amt in stats['category_breakdown'].items():  # No truncation
                     parts.append(f"  - {cat}: NT${amt:,.0f}")
         
         return "\n".join(parts) if parts else "資料不足"

@@ -47,6 +47,7 @@ class TerminalGraphGenerator:
         plt.theme('dark')
         plt.plotsize(100, 20)
         plt.show()
+        return "✅ Monthly bar chart displayed"
     
     def plot_category_horizontal_bar(self, insights: Dict) -> None:
         """Horizontal bar chart for category breakdown"""
@@ -80,6 +81,7 @@ class TerminalGraphGenerator:
         plt.theme('dark')
         plt.plotsize(100, 15)
         plt.show()
+        return "✅ Category bar chart displayed"
     
     def plot_trend_line(self, trend_data: List[Dict], category: str) -> None:
         """Line chart of category trend"""
@@ -111,6 +113,7 @@ class TerminalGraphGenerator:
         plt.theme('dark')
         plt.plotsize(100, 20)
         plt.show()
+        return "✅ Trend line chart displayed"
     
     def plot_comparison_bars(self, comparison: Dict) -> None:
         """Side-by-side comparison chart"""
@@ -153,6 +156,7 @@ class TerminalGraphGenerator:
         plt.theme('dark')
         plt.plotsize(100, 20)
         plt.show()
+        return "✅ Comparison bars chart displayed"
     
     def plot_stacked_trend(self, summary: Dict) -> None:
         """Stacked bar chart showing category composition by month"""
@@ -197,4 +201,5 @@ class TerminalGraphGenerator:
         plt.theme('dark')
         plt.plotsize(100, 25)
         plt.show()
+        return "✅ Stacked trend chart displayed"
 

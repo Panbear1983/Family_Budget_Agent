@@ -50,7 +50,7 @@ class ContextManager:
         recent = self.history[-3:]  # Last 3 interactions
         summary = "Recent topics:\n"
         for item in recent:
-            summary += f"- {item['question'][:50]}...\n"
+            summary += f"- {item['question']}\n"  # No truncation
         
         if self.current_focus:
             summary += f"\nCurrent focus: {self.current_focus}"
@@ -99,7 +99,7 @@ class ContextManager:
             log_entry = {
                 'timestamp': datetime.now().isoformat(),
                 'question': question,
-                'answer_preview': answer[:200] if answer else '',  # First 200 chars
+                'answer_preview': answer if answer else '',  # No truncation
                 'question_type': metadata.get('type') if metadata else 'unknown',
                 'handler': metadata.get('handler') if metadata else 'unknown',
                 'entities': metadata.get('entities') if metadata else {},

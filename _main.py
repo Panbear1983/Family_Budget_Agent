@@ -301,44 +301,31 @@ def update_monthly_workflow(merger, annual_mgr):
             input("\n❌ 無效選擇 (Invalid choice). Press Enter...")
 
 def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
-    """Enhanced budget chat with multi-year visual capabilities"""
+    """Simplified budget chat using Qwen for function routing"""
     print_header()
     print("💬 預算分析對話 (BUDGET CHAT & INSIGHTS)\n")
     print("="*100 + "\n")
     
-    # Attempt to load enhanced insights module with multi-year support
+    # Load simplified Qwen-based chat system
     enhanced_mode = False
-    chat_module = None
-    ai_chat = None
+    qwen_chat = None
     
     try:
-        from core.module_registry import registry
-        from modules.insights.ai_chat import AIChat
+        from core.qwen_orchestrator import QwenOrchestrator
+        from modules.insights.qwen_chat import QwenChat
         from modules.insights.multi_year_data_loader import MultiYearDataLoader
+        
+        # Initialize Qwen orchestrator
+        qwen_orchestrator = QwenOrchestrator()
+        qwen_orchestrator.initialize()
         
         # Use multi-year data loader
         multi_data_loader = MultiYearDataLoader(budget_files)
         
-        chat_module = registry.get_module('BudgetChat', config={
-            'budget_file': annual_mgr.get_active_budget_file()
-        })
-        
-        # Replace data loader with multi-year version
-        chat_module.data_loader = multi_data_loader
-        chat_module.trend_analyzer.data_loader = multi_data_loader
-        chat_module.terminal_graph.data_loader = multi_data_loader
-        chat_module.gui_graph.data_loader = multi_data_loader
-        chat_module.insight_generator.data_loader = multi_data_loader
-        
-        chat_module.set_orchestrator(orchestrator)
-        
-        # Initialize AI Chat controller with multi-year data
-        ai_chat = AIChat(
+        # Initialize Qwen Chat
+        qwen_chat = QwenChat(
             data_loader=multi_data_loader,
-            orchestrator=orchestrator,
-            context_manager=chat_module.context_manager,
-            insight_generator=chat_module.insight_generator,
-            trend_analyzer=chat_module.trend_analyzer
+            orchestrator=qwen_orchestrator
         )
         
         enhanced_mode = True
@@ -346,12 +333,12 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
         # Show year range
         min_year, max_year = multi_data_loader.get_year_range()
         if min_year and max_year:
-            print(f"✅ Enhanced insights mode (Multi-Year: {min_year}-{max_year})\n")
+            print(f"✅ Qwen Chat mode (Multi-Year: {min_year}-{max_year})\n")
         else:
-            print("✅ Enhanced insights mode activated (with AI Chat!)\n")
+            print("✅ Qwen Chat mode activated - Natural language routing to existing functions\n")
             
     except Exception as e:
-        print("⚠️  Multi-year insights module not available")
+        print("⚠️  Qwen Chat module not available")
         print(f"   Using basic chat mode (Reason: {e})\n")
         import traceback
         traceback.print_exc()
@@ -359,10 +346,10 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
     
     # Get available data (filter to 2025+ only)
     if enhanced_mode:
-        all_months = list(chat_module.data_loader.load_all_data().keys())
+        all_months = list(multi_data_loader.load_all_data().keys())
         # Filter: Only show months from 2025 onwards
         available_months = [m for m in all_months if not m.startswith('2024')]
-        stats = chat_module.data_loader.get_summary_stats()
+        stats = multi_data_loader.get_summary_stats()
         categories = list(stats['by_category'].keys()) if stats else ['伙食费', '交通费', '休闲/娱乐']
     else:
         available_months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月']
@@ -389,32 +376,29 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
             print("\n🤖 智能問答模式 (AI Chat Mode)")
             print("─" * 100)
             print("\n✅ 我能回答的問題類型 (What I Can Answer):\n")
-            console.print("   [green]1. 支出查詢 (Spending Queries):[/green]")
-            print("      • 「七月花了多少？」/ \"How much in July?\"")
-            print("      • 「七月的伙食費是多少？」/ \"How much food in July?\"")
-            print("      • 「總支出是多少？」/ \"What's the total spending?\"")
-            print("      • 「平均每月花費多少？」/ \"What's the average monthly spending?\"")
+            console.print("   [green]1. 📊 數據查詢 (Data Queries):[/green]")
+            print("      • 「顯示七月數據」/ \"Show July data\"")
+            print("      • 「七月分類統計」/ \"July category breakdown\"")
+            print("      • 「年度總覽」/ \"Show yearly summary\"")
             print("")
-            console.print("   [green]2. 比較分析 (Comparisons):[/green]")
+            console.print("   [green]2. 📈 視覺化分析 (Visualization):[/green]")
+            print("      • 「七月圓餅圖」/ \"July pie chart\"")
+            print("      • 「月度趨勢圖」/ \"Monthly trend chart\"")
+            print("      • 「分類柱狀圖」/ \"Category bar chart\"")
+            print("")
+            console.print("   [green]3. ⚖️  比較分析 (Comparisons):[/green]")
             print("      • 「比較七月和八月」/ \"Compare July and August\"")
-            print("      • 「七月跟八月差多少？」/ \"What's the difference between July and August?\"")
+            print("      • 「顯示對比圖表」/ \"Show comparison chart\"")
             print("")
-            console.print("   [green]3. 趨勢分析 (Trend Analysis):[/green]")
-            print("      • 「伙食費的趨勢如何？」/ \"What's the food spending trend?\"")
-            print("      • 「交通費有什麼變化？」/ \"How is transportation cost changing?\"")
+            console.print("   [green]4. 📈 趨勢分析 (Trend Analysis):[/green]")
+            print("      • 「伙食費趨勢」/ \"Food spending trend\"")
+            print("      • 「顯示趨勢圖表」/ \"Show trend chart\"")
             print("")
-            console.print("   [green]4. 預測 (Forecasts):[/green]")
-            print("      • 「預測下個月支出」/ \"Forecast next month\"")
-            print("      • 「預測下個月的伙食費」/ \"Predict next month's food spending\"")
-            print("")
-            console.print("   [green]5. 深入洞察 (Insights & Reasoning):[/green]")
-            print("      • 「為什麼七月支出增加？」/ \"Why did spending increase in July?\"")
-            print("      • 「解釋伙食費的變化」/ \"Explain the food cost changes\"")
-            print("")
-            console.print("   [green]6. 建議與優化 (Advice & Optimization):[/green]")
-            print("      • 「我應該如何減少支出？」/ \"How should I reduce spending?\"")
-            print("      • 「哪裡可以節省？」/ \"Where can I save money?\"")
-            print("      • 「建議如何優化預算」/ \"Recommend budget optimizations\"")
+            print("💡 提示: 使用自然語言描述您想要的分析，例如:")
+            print("   • \"顯示七月的支出數據\"")
+            print("   • \"比較七月和八月的花費\"")
+            print("   • \"伙食費的趨勢如何\"")
+            print("   • \"顯示年度總覽表格\"")
             print("")
             console.print("   [yellow]📊 需要圖表？ (Need Charts?):[/yellow]")
             print("      返回主選單選擇 [2] 視覺化分析")
@@ -436,9 +420,9 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
                 print("🤔 AI 思考中...", end='', flush=True)
                 
                 try:
-                    if enhanced_mode and ai_chat:
-                        # Use new AI Chat system with all smart features
-                        answer = ai_chat.answer_question(question)
+                    if enhanced_mode and qwen_chat:
+                        # Use simplified Qwen Chat system for function routing
+                        answer = qwen_chat.answer_question(question)
                     else:
                         # Fallback to basic mode
                         budget_data = {
@@ -457,12 +441,21 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
         elif mode == '2':
             # Visual analysis mode
             if not enhanced_mode:
-                print("\n⚠️  視覺化分析需要 enhanced insights 模組")
+                print("\n⚠️  視覺化分析需要 Qwen Chat 模組")
                 input("按 Enter 繼續...")
                 continue
             
             from modules.insights.chat_menus import visual_analysis_menu
-            visual_analysis_menu(chat_module, available_months, categories)
+            # Create a mock chat_module for compatibility
+            class MockChatModule:
+                def execute(self, function_name, *args):
+                    # Route to function registry
+                    if enhanced_mode and qwen_chat:
+                        return qwen_chat.function_registry.execute_function(function_name, *args)
+                    return f"Function {function_name} not available"
+            
+            mock_chat_module = MockChatModule()
+            visual_analysis_menu(mock_chat_module, available_months, categories)
     
     # Return directly to main menu (no extra Enter needed)
 
