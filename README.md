@@ -71,6 +71,38 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
 
 ---
 
+## 📸 Screenshots
+
+> **📷 SCREENSHOT PLACEMENT 1: Main Menu Interface**
+> 
+> *Insert screenshot showing the main menu with options:*
+> *- [1] View Budget*
+> *- [2] Update Monthly Budget* 
+> *- [3] Budget Chat*
+> *- [4] System Tools*
+
+> **📷 SCREENSHOT PLACEMENT 2: Budget View Terminal**
+> 
+> *Insert screenshot showing the terminal budget view with rich formatting, monthly breakdown, and category totals*
+
+> **📷 SCREENSHOT PLACEMENT 3: AI Chat Interface**
+> 
+> *Insert screenshot showing the AI chat interface with Chinese/English questions and responses, confidence scores, and visual charts*
+
+> **📷 SCREENSHOT PLACEMENT 4: Excel File Structure**
+> 
+> *Insert screenshot showing the OneDrive Excel file with monthly sheets (一月-十二月) and the annual summary sheet*
+
+> **📷 SCREENSHOT PLACEMENT 5: Visual Charts (GUI)**
+> 
+> *Insert screenshot showing matplotlib-generated charts for spending analysis, category breakdowns, and trend analysis*
+
+> **📷 SCREENSHOT PLACEMENT 6: CSV Processing Pipeline**
+> 
+> *Insert screenshot showing the CSV upload and LLM categorization process with preview and confirmation*
+
+---
+
 ## 🏗️ Operating Environment
 
 ### Where It Runs
@@ -136,60 +168,6 @@ The system automatically handles year transitions with **zero manual interventio
 - **View Budget** menu shows all years with monthly breakdown
 - AI Chat can analyze trends across multiple years
 - Seamless year-over-year comparisons
-
----
-
-### Data Sources
-
-**Primary Data:**
-- Personal bank export: `peter_[month].xlsx` (Excel format)
-- Spouse bank export: `wife_[month].csv` or `.xlsx` (mixed format)
-- **Master budget file on OneDrive:** **`[YEAR]年開銷表（NT）.xlsx`**
-  - Current year example: `/Users/peter/Library/CloudStorage/OneDrive-Personal/Documents/2025年開銷表（NT）.xlsx`
-  - **Year-dynamic naming:** File name changes with the calendar year (2025→2026→2027...)
-  - **Auto-creation:** On January 1st of each new year, the system automatically creates the next year's file from template
-  - This is the single source of truth for all budget data
-  - File format: Excel workbook with 12 monthly sheets (一月-十二月) + annual summary (年總計)
-
-**Supported Transaction Fields:**
-- Date (日期): Various formats (YYYY/MM/DD, MM/DD, etc.)
-- Description (說明/描述): Mixed English/Chinese
-- Amount (金額/數量): NT$ amounts
-- Type (類型): Expense/Income
-- Category (類別): Auto-assigned by LLM
-
-**Category Mapping:**
-- JSON-based dictionary: `category_mapping.json`
-- Bilingual categories (English → 中文)
-- Person-specific rules (e.g., Peter's "Starbucks" → "伙食費")
-- LLM fallback for unmapped transactions
-
----
-
-## 🚀 Quick Start
-
-Get started in under 2 minutes:
-
-```bash
-# 1. Navigate to project
-cd /Users/peter/Desktop/Old_Projects/GitHub/Family_Budget_Agent
-
-# 2. Activate environment
-source venv/bin/activate
-
-# 3. Run the agent
-python _main.py
-```
-
-**That's it!** The interactive menu will guide you through:
-- **[1] View Budget** - Display any month from 2025+ or annual summaries
-- **[2] Update Monthly Budget** - Two options:
-  - **Automated:** Merge family CSV exports (LLM categorizes and writes to Excel)
-  - **Manual:** Cell-by-cell editor with date auto-fill and expense entry
-- **[3] Budget Chat** - AI-powered Q&A with visual analysis
-- **[4] System Tools** - Config, module status, create next year's file
-
-**First-time setup?** See [Setup & Installation](#-setup--installation) below.
 
 ---
 
@@ -271,7 +249,7 @@ USER INPUT (CSV or Question)
 
 ## 🎯 Main Features
 
-### 1. View 2025 Budget 📊
+### 1. View Budget 📊
 ```
 View your OneDrive Excel file:
 - Monthly details (daily entries)
@@ -319,15 +297,41 @@ AI-powered chat with your budget data:
 - **Tier 2** (LLM + Summary): Fast answers (~5s) - 15% of questions  
 - **Tier 3** (LLM + Full Data): Complete answers (~15s) - 5% of questions
 
-📖 **[Full AI Chat Documentation →](modules/insights/AI_CHATBOT_README.md)**
-
 ### 4. System Tools ⚙️
 ```
 - View module status
 - Check LLM configuration
 - Test OneDrive connection
 - Reload modules (development)
+- Create next year's budget file
 ```
+
+---
+
+## 🚀 Quick Start
+
+Get started in under 2 minutes:
+
+```bash
+# 1. Navigate to project
+cd /Users/peter/Desktop/Old_Projects/GitHub/Family_Budget_Agent
+
+# 2. Activate environment
+source venv/bin/activate
+
+# 3. Run the agent
+python _main.py
+```
+
+**That's it!** The interactive menu will guide you through:
+- **[1] View Budget** - Display any month from 2025+ or annual summaries
+- **[2] Update Monthly Budget** - Two options:
+  - **Automated:** Merge family CSV exports (LLM categorizes and writes to Excel)
+  - **Manual:** Cell-by-cell editor with date auto-fill and expense entry
+- **[3] Budget Chat** - AI-powered Q&A with visual analysis
+- **[4] System Tools** - Config, module status, create next year's file
+
+**First-time setup?** See [Setup & Installation](#-setup--installation) below.
 
 ---
 
@@ -340,12 +344,13 @@ Family_Budget_Agent/
 ├── config.py                # ⭐ Configuration (swap LLMs here!)
 ├── category_mapping.json    # Category dictionary
 ├── README.md                # This file
-├── IMPROVEMENTS_ROADMAP.md  # 🚧 Features in progress
 │
 ├── core/                    # Core infrastructure
 │   ├── base_module.py       # Module interface
 │   ├── module_registry.py   # Plugin loader
-│   └── orchestrator.py      # LLM orchestration
+│   ├── orchestrator.py      # LLM orchestration
+│   ├── qwen_orchestrator.py # Qwen-specific orchestrator
+│   └── simple_orchestrator.py # Simplified orchestrator
 │
 ├── modules/                 # Plugin modules (auto-discovered)
 │   ├── data/                # Data processing modules
@@ -355,24 +360,20 @@ Family_Budget_Agent/
 │   │   └── simple_categorizer.py
 │   │
 │   ├── insights/            # AI Chat & analysis
-│   │   ├── ai_chat.py       # Main AI chat controller
-│   │   ├── budget_chat.py   # Insights coordinator
+│   │   ├── budget_chat.py   # Main AI chat controller
+│   │   ├── chat_menus.py    # Chat interface menus
 │   │   ├── data_loader.py   # Excel data loader
+│   │   ├── multi_year_data_loader.py # Multi-year data support
 │   │   ├── gui_graphs.py    # Matplotlib charts
 │   │   ├── terminal_graphs.py # ASCII charts
-│   │   ├── AI_CHATBOT_README.md  # 📖 AI Chat docs
-│   │   └── ... (10+ supporting modules)
+│   │   ├── visual_report_generator.py # Rich terminal reports
+│   │   ├── function_registry.py # Chat function registry
+│   │   └── qwen_chat.py     # Qwen-specific chat implementation
 │   │
 │   └── llm/                 # LLM engines
 │       ├── base_llm.py      # LLM interface
 │       ├── qwen_engine.py   # Qwen3:8b
 │       └── gpt_oss_engine.py # GPT-OSS:20b
-│
-├── docs/                    # Documentation
-│   ├── ARCHITECTURE.md      # System design
-│   ├── WORKFLOW.md          # Process flows
-│   ├── MODULE_USAGE.md      # Plugin system
-│   └── LLM_MIX_MODEL.md     # ⭐ Mix model guide
 │
 └── utils/                   # Helper scripts
     ├── edit_cells.py
@@ -649,25 +650,10 @@ Choose month: 7 (July)
 - Multi-year analysis UI incomplete (backend ready)
 
 ### 🚧 In Progress
-See **[IMPROVEMENTS_ROADMAP.md](IMPROVEMENTS_ROADMAP.md)** for:
-- Features being developed
-- Optimizations planned
-- Known issues & workarounds
-- Future vision
-
----
-
-## 📖 Documentation
-
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| **README.md** (this file) | System overview & quick start | Everyone |
-| **[IMPROVEMENTS_ROADMAP.md](IMPROVEMENTS_ROADMAP.md)** | 🚧 WIP features & roadmap | Developers & Contributors |
-| **[modules/insights/AI_CHATBOT_README.md](modules/insights/AI_CHATBOT_README.md)** | 💬 AI Chat deep dive | AI Chat users |
-| **[docs/LLM_MIX_MODEL.md](docs/LLM_MIX_MODEL.md)** | 🤖 Mix model technical guide | Developers |
-| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | System design & decisions | Developers |
-| **[docs/WORKFLOW.md](docs/WORKFLOW.md)** | Detailed process flows | Power users |
-| **[docs/MODULE_USAGE.md](docs/MODULE_USAGE.md)** | Plugin system guide | Module developers |
+- Performance optimizations (cache TTL increased to 30 minutes)
+- Font optimization for Chinese characters
+- Enhanced error handling
+- Improved user experience
 
 ---
 
@@ -721,6 +707,7 @@ print(registry.list_modules())  # Check discovered modules
 - Reduce to single model in config.py
 - Use terminal charts instead of GUI charts
 - Clear OneDrive sync conflicts
+- Cache TTL increased to 30 minutes for better performance
 
 ### Category not mapping?
 ```
@@ -745,7 +732,11 @@ Add to category_mapping.json:
 4. 🟡 **Medium**: Multi-year analysis UI
 5. 🟢 **Low**: Custom chart themes
 
-See **[IMPROVEMENTS_ROADMAP.md](IMPROVEMENTS_ROADMAP.md)** for detailed contribution opportunities.
+### Development Guidelines
+- Follow the plugin system architecture
+- Test with both LLM models
+- Maintain bilingual support
+- Keep privacy-first approach
 
 ---
 
@@ -753,9 +744,9 @@ See **[IMPROVEMENTS_ROADMAP.md](IMPROVEMENTS_ROADMAP.md)** for detailed contribu
 
 **Questions?** Check:
 1. This README (overview)
-2. [IMPROVEMENTS_ROADMAP.md](IMPROVEMENTS_ROADMAP.md) (known issues)
-3. [AI_CHATBOT_README.md](modules/insights/AI_CHATBOT_README.md) (AI Chat help)
-4. [docs/](docs/) (technical deep dives)
+2. Troubleshooting section above
+3. System Tools → Module Status
+4. Check logs for detailed error messages
 
 ---
 
@@ -773,5 +764,3 @@ Personal project - feel free to adapt for your own use.
 ---
 
 Built with ❤️ for intelligent, privacy-first family budgeting.
-
-**[🚧 View Development Roadmap →](IMPROVEMENTS_ROADMAP.md)**

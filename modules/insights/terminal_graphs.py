@@ -36,17 +36,46 @@ class TerminalGraphGenerator:
             '九月': 'Sep', '十月': 'Oct', '十一月': 'Nov', '十二月': 'Dec'
         }
         
-        months = [month_trans.get(m, m) for m in monthly.keys()]
-        amounts = [monthly[m] / 1000 for m in list(monthly.keys())]  # Convert to thousands
+        # Create a mapping for Chinese month names to their chronological order
+        chinese_month_order = {
+            '一月': 1, '二月': 2, '三月': 3, '四月': 4, '五月': 5, '六月': 6,
+            '七月': 7, '八月': 8, '九月': 9, '十月': 10, '十一月': 11, '十二月': 12
+        }
+        
+        # Sort months chronologically
+        def get_month_number(month_key):
+            # Extract month name from format like "2025-一月"
+            month_name = month_key.split('-')[1] if '-' in month_key else month_key
+            return chinese_month_order.get(month_name, 999)
+        
+        sorted_monthly = sorted(monthly.items(), key=lambda x: get_month_number(x[0]))
+        
+        months = [month_trans.get(m.split('-')[1] if '-' in m else m, m) for m, _ in sorted_monthly]
+        amounts = [amount / 1000 for _, amount in sorted_monthly]  # Convert to thousands
         
         plt.clear_figure()
         plt.bar(months, amounts, color='cyan')
         plt.title("📊 Monthly Spending Trend (in 1000s)")
         plt.xlabel("Month")
         plt.ylabel("Amount (NT$ 1000)")
+        
+        # Set uniform 50K increments on y-axis
+        max_amount = max(amounts)
+        y_max = ((int(max_amount) // 50) + 1) * 50  # Round up to nearest 50K
+        y_ticks = list(range(0, y_max + 1, 50))  # 0, 50, 100, 150, 200, etc.
+        plt.yticks(y_ticks)
+        
         plt.theme('dark')
         plt.plotsize(100, 20)
         plt.show()
+        
+        # Display values on top of each bar (since plotext doesn't support text on bars)
+        print("\n📊 Monthly Values (NT$ 1000s):")
+        print("─" * 50)
+        for month, amount in zip(months, amounts):
+            print(f"  {month:>3}: {amount:>8.1f}k")
+        print("─" * 50)
+        
         return "✅ Monthly bar chart displayed"
     
     def plot_category_horizontal_bar(self, insights: Dict) -> None:

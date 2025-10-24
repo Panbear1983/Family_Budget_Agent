@@ -63,6 +63,9 @@ class FunctionRegistry:
             # Add menu routing function
             self.functions['menu_routing'] = self._menu_routing_wrapper
             
+            # Add chart options menu function
+            self.functions['chart_options_menu'] = self._chart_options_menu_wrapper
+            
         except ImportError as e:
             print(f"Warning: Could not import some functions: {e}")
         
@@ -98,6 +101,9 @@ class FunctionRegistry:
             ],
             'menu_routing': [
                 'menu_routing'
+            ],
+            'chart_options': [
+                'chart_options_menu'
             ]
         }
     
@@ -429,7 +435,9 @@ class FunctionRegistry:
             return "❌ Data loader not available"
         try:
             # Get all available months and create yearly summary
-            available_months = self.data_loader.get_available_months()
+            all_months = self.data_loader.get_available_months()
+            # Filter to exclude 2024 data specifically, but allow current and previous year
+            available_months = [m for m in all_months if not m.startswith('2024')]
             monthly_trend = {}
             total_spending = 0
             category_breakdown = {}
@@ -543,6 +551,44 @@ class FunctionRegistry:
 
 💡 **提示：** 返回主選單按 'x' 即可
 """
+    
+    def _chart_options_menu_wrapper(self, *args):
+        """Wrapper for chart options menu"""
+        if not self.data_loader:
+            return "❌ Data loader not available"
+        
+        try:
+            # Import the chart options menu function
+            from .chat_menus import chart_options_menu
+            
+            # Get available months and categories
+            all_data = self.data_loader.load_all_data()
+            available_months = list(all_data.keys())
+            
+            # Get categories from the first available month
+            categories = []
+            if available_months:
+                first_month_data = all_data[available_months[0]]
+                if 'category' in first_month_data.columns:
+                    categories = first_month_data['category'].unique().tolist()
+            
+            # Create a mock chat module for compatibility
+            class MockChatModule:
+                def __init__(self, function_registry):
+                    self.function_registry = function_registry
+                
+                def execute(self, function_name, *args):
+                    return self.function_registry.execute_function(function_name, *args)
+            
+            mock_chat_module = MockChatModule(self)
+            
+            # Call the chart options menu
+            chart_options_menu(mock_chat_module, available_months, categories)
+            
+            return "✅ Chart options menu completed"
+            
+        except Exception as e:
+            return f"❌ Error opening chart options menu: {e}"
     
     def get_functions_for_intent(self, intent: str) -> List[str]:
         """Get available functions for an intent"""

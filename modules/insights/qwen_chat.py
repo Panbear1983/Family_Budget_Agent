@@ -4,10 +4,7 @@ Routes natural language to existing view and visual analysis functions
 """
 
 from typing import Optional, Dict, Any, List
-from .language_detector import LanguageDetector
 from .function_registry import FunctionRegistry
-from .response_formatter import ResponseFormatter
-from .guardrails import Guardrails
 
 class QwenChat:
     """Simplified chatbot using Qwen for natural language to function routing"""
@@ -27,10 +24,7 @@ class QwenChat:
         self.context_manager = context_manager
         
         # Initialize components
-        self.lang_detector = LanguageDetector(default_language='auto')
         self.function_registry = FunctionRegistry()
-        self.formatter = ResponseFormatter(self.lang_detector)
-        self.guardrails = Guardrails(data_loader, self.lang_detector)
         
         # Set data loader for function registry
         self.function_registry.set_data_loader(data_loader)
@@ -49,29 +43,16 @@ class QwenChat:
         """
         print(f"🔍 Processing: '{question}'")
         
-        # Step 1: Detect language
-        user_lang, _ = self.lang_detector.detect(question)
-        
-        # Step 2: Check topic relevance
-        is_allowed, _, redirect_msg = self.guardrails.check_topic_relevance(question, user_lang)
-        if not is_allowed:
-            return redirect_msg
-        
-        # Step 3: Classify intent using Qwen
+        # Step 1: Classify intent using Qwen
         print("🤖 Qwen classifying intent...")
         classification = self.orchestrator.classify_intent(question)
         print(f"📋 Intent: {classification['intent']}, Entities: {classification['entities']}")
         
-        # Step 4: Execute appropriate function
+        # Step 2: Execute appropriate function
         result = self._execute_function_chain(question, classification)
         
-        # Step 5: Format response
-        if isinstance(result, str) and ('┌' in result or '╭' in result or '📊' in result):
-            # Already formatted (Rich tables, etc.)
-            return result
-        else:
-            # Format using response formatter
-            return self.formatter.format(result, classification, user_lang)
+        # Step 3: Return result (already formatted)
+        return result
     
     def _execute_function_chain(self, question: str, classification: Dict[str, Any]) -> str:
         """Execute the most appropriate function based on classification"""

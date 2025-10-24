@@ -23,7 +23,7 @@ class MultiYearDataLoader(DataLoader):
         self.budget_files = budget_files
         self.cache = {}
         self.last_loaded = None
-        self.ttl = 300  # Cache for 5 minutes
+        self.ttl = 1800  # Cache for 30 minutes
         
         # Extract years from filenames
         self.years = []

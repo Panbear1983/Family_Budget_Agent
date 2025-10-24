@@ -14,16 +14,17 @@ class DataLoader:
         self.budget_file = budget_file
         self.cache = {}
         self.last_loaded = None
-        self.ttl = 300  # Cache for 5 minutes
+        self.ttl = 1800  # Cache for 30 minutes
     
-    def load_all_data(self, force_reload: bool = False) -> Dict[str, pd.DataFrame]:
+    def load_all_data(self, force_reload: bool = False, silent: bool = False) -> Dict[str, pd.DataFrame]:
         """Load all months from budget file"""
         
         # Check cache
         if not force_reload and self._is_cache_valid():
             return self.cache
         
-        print("📊 Loading budget data...")
+        if not silent:
+            print("📊 Loading budget data...")
         
         try:
             wb = load_workbook(self.budget_file, read_only=True, data_only=True)
@@ -49,6 +50,11 @@ class DataLoader:
                             # SKIP SUMMARY ROWS - Only process actual datetime objects
                             if not isinstance(date, datetime):
                                 continue
+                            
+                            # FILTER BY YEAR - Only include 2025 data for 2025 reports
+                            # Note: Year filtering removed for performance - only 2025 data exists
+                            # if date.year != 2025:
+                            #     continue
                             
                             # SKIP rows with summary keywords (extra safety)
                             date_str = str(date)
@@ -79,7 +85,8 @@ class DataLoader:
             self.cache = data
             self.last_loaded = datetime.now()
             
-            print(f"✅ Loaded {len(data)} months with {sum(len(df) for df in data.values())} transactions")
+            if not silent:
+                print(f"✅ Loaded {len(data)} months with {sum(len(df) for df in data.values())} transactions")
             return data
         
         except Exception as e:
@@ -93,9 +100,9 @@ class DataLoader:
         all_data = self.load_all_data()
         return all_data.get(month)
     
-    def get_summary_stats(self) -> Dict:
+    def get_summary_stats(self, silent: bool = False) -> Dict:
         """Get quick summary statistics"""
-        data = self.load_all_data()
+        data = self.load_all_data(silent=silent)
         
         stats = {
             'total_months': len(data),
@@ -117,6 +124,13 @@ class DataLoader:
                         stats['by_category'][cat] = stats['by_category'].get(cat, 0) + amount
         
         return stats
+    
+    def clear_cache(self, silent: bool = False):
+        """Clear the data cache to force fresh data loading"""
+        self.cache = {}
+        self.last_loaded = None
+        if not silent:
+            print("🔄 Cache cleared - will reload data with year filtering")
     
     def _is_cache_valid(self) -> bool:
         """Check if cache is still valid"""

@@ -1,0 +1,749 @@
+{
+  "version": "2.0",
+  "description": "Simple Page Navigation for Chatbot - Build Part by Part",
+  "last_updated": "2025-01-15",
+  "build_phases": {
+    "phase_1": "Core monthly tables (12 months + annual)",
+    "phase_2": "Visual analysis menus", 
+    "phase_3": "Comparison features",
+    "phase_4": "Advanced charts and reports",
+    "phase_5": "System tools and settings"
+  },
+  
+  "phase_1_core_tables": {
+    "status": "ready_to_implement",
+    "description": "Basic monthly and annual table viewing",
+    
+    "monthly_tables": {
+      "一月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["一月"],
+        "keywords": ["一月", "January", "1月", "Jan", "first month", "第一個月"],
+        "trigger_phrases": [
+          "show me January",
+          "display January data", 
+          "一月數據",
+          "January spending",
+          "1月支出",
+          "January budget table",
+          "一月預算表"
+        ]
+      },
+      
+      "二月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["二月"],
+        "keywords": ["二月", "February", "2月", "Feb", "second month", "第二個月"],
+        "trigger_phrases": [
+          "show me February",
+          "display February data",
+          "二月數據", 
+          "February spending",
+          "2月支出",
+          "February budget table",
+          "二月預算表"
+        ]
+      },
+      
+      "三月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["三月"],
+        "keywords": ["三月", "March", "3月", "Mar", "third month", "第三個月"],
+        "trigger_phrases": [
+          "show me March",
+          "display March data",
+          "三月數據",
+          "March spending", 
+          "3月支出",
+          "March budget table",
+          "三月預算表"
+        ]
+      },
+      
+      "四月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["四月"],
+        "keywords": ["四月", "April", "4月", "Apr", "fourth month", "第四個月"],
+        "trigger_phrases": [
+          "show me April",
+          "display April data",
+          "四月數據",
+          "April spending",
+          "4月支出", 
+          "April budget table",
+          "四月預算表"
+        ]
+      },
+      
+      "五月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["五月"],
+        "keywords": ["五月", "May", "5月", "fifth month", "第五個月"],
+        "trigger_phrases": [
+          "show me May",
+          "display May data",
+          "五月數據",
+          "May spending",
+          "5月支出",
+          "May budget table",
+          "五月預算表"
+        ]
+      },
+      
+      "六月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["六月"],
+        "keywords": ["六月", "June", "6月", "Jun", "sixth month", "第六個月"],
+        "trigger_phrases": [
+          "show me June",
+          "display June data",
+          "六月數據",
+          "June spending",
+          "6月支出",
+          "June budget table",
+          "六月預算表"
+        ]
+      },
+      
+      "七月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["七月"],
+        "keywords": ["七月", "July", "7月", "Jul", "seventh month", "第七個月"],
+        "trigger_phrases": [
+          "show me July",
+          "display July data",
+          "七月數據",
+          "July spending",
+          "7月支出",
+          "July budget table",
+          "七月預算表"
+        ]
+      },
+      
+      "八月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["八月"],
+        "keywords": ["八月", "August", "8月", "Aug", "eighth month", "第八個月"],
+        "trigger_phrases": [
+          "show me August",
+          "display August data",
+          "八月數據",
+          "August spending",
+          "8月支出",
+          "August budget table",
+          "八月預算表"
+        ]
+      },
+      
+      "九月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["九月"],
+        "keywords": ["九月", "September", "9月", "Sep", "ninth month", "第九個月"],
+        "trigger_phrases": [
+          "show me September",
+          "display September data",
+          "九月數據",
+          "September spending",
+          "9月支出",
+          "September budget table",
+          "九月預算表"
+        ]
+      },
+      
+      "十月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["十月"],
+        "keywords": ["十月", "October", "10月", "Oct", "tenth month", "第十個月"],
+        "trigger_phrases": [
+          "show me October",
+          "display October data",
+          "十月數據",
+          "October spending",
+          "10月支出",
+          "October budget table",
+          "十月預算表"
+        ]
+      },
+      
+      "十一月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["十一月"],
+        "keywords": ["十一月", "November", "11月", "Nov", "eleventh month", "第十一個月"],
+        "trigger_phrases": [
+          "show me November",
+          "display November data",
+          "十一月數據",
+          "November spending",
+          "11月支出",
+          "November budget table",
+          "十一月預算表"
+        ]
+      },
+      
+      "十二月": {
+        "function": "display_monthly_sheet",
+        "parameters": ["十二月"],
+        "keywords": ["十二月", "December", "12月", "Dec", "twelfth month", "第十二個月"],
+        "trigger_phrases": [
+          "show me December",
+          "display December data",
+          "十二月數據",
+          "December spending",
+          "12月支出",
+          "December budget table",
+          "十二月預算表"
+        ]
+      }
+    },
+    
+    "annual_summary": {
+      "function": "display_annual_summary",
+      "parameters": [],
+      "keywords": [
+        "annual", "yearly", "年度", "年", "summary", "總覽", "overview", "總覽",
+        "yearly summary", "年度統計", "annual report", "年度報告",
+        "all months", "所有月份", "year table", "年表格"
+      ],
+      "trigger_phrases": [
+        "show me annual summary",
+        "display yearly overview",
+        "年度總覽",
+        "annual report",
+        "年度報告",
+        "show me all months",
+        "所有月份",
+        "yearly summary",
+        "年度統計",
+        "annual overview",
+        "年度數據",
+        "yearly data",
+        "年度明細",
+        "annual details",
+        "年度表格",
+        "yearly table",
+        "年度預算",
+        "annual budget",
+        "年度支出",
+        "yearly spending",
+        "年度總計",
+        "annual total",
+        "全年統計",
+        "yearly statistics",
+        "整年數據",
+        "full year data",
+        "年度比較",
+        "yearly comparison"
+      ]
+    },
+    
+    "multi_year_summary": {
+      "function": "display_annual_summary",
+      "parameters": [],
+      "keywords": [
+        "multi-year", "多年度", "multi year", "多年度總覽", "multi-year summary",
+        "option 13", "選項13", "option thirteen", "選項十三",
+        "multi year summary", "多年度統計", "multi-year overview", "多年度總覽",
+        "all years", "所有年份", "yearly comparison", "年度比較",
+        "multi-year data", "多年度數據", "cross-year", "跨年度"
+      ],
+      "trigger_phrases": [
+        "show me multi-year summary",
+        "多年度總覽",
+        "multi-year overview",
+        "多年度統計",
+        "show me option 13",
+        "選項13",
+        "multi-year data",
+        "多年度數據",
+        "all years summary",
+        "所有年份統計",
+        "yearly comparison",
+        "年度比較",
+        "multi-year report",
+        "多年度報告",
+        "cross-year summary",
+        "跨年度總覽",
+        "multi-year analysis",
+        "多年度分析",
+        "show me all years",
+        "所有年份",
+        "multi-year overview",
+        "多年度總覽",
+        "yearly comparison table",
+        "年度比較表格",
+        "multi-year statistics",
+        "多年度統計數據"
+      ]
+    }
+  },
+  
+  "visual_analysis_menu": {
+    "function": "visual_analysis_menu",
+    "parameters": [],
+    "keywords": [
+      "visual analysis", "視覺化分析", "data insight", "數據洞察", "analysis", "分析", 
+      "menu 3", "選項3", "option 3", "main menu 3", "主選單3",
+      "visual analysis menu", "視覺化分析選單"
+    ],
+    "trigger_phrases": [
+      "Show me visual analysis",
+      "視覺化分析",
+      "Show me charts and graphs",
+      "圖表分析",
+      "Data insight menu",
+      "數據洞察選單",
+      "Show me option 3",
+      "選項3",
+      "Main menu 3",
+      "主選單3",
+      "Visualization menu",
+      "視覺化選單"
+    ]
+  },
+  
+  "monthly_analysis": {
+    "function": "monthly_analysis",
+    "parameters": ["month"],
+    "keywords": [
+      "monthly analysis", "單月分析", "month analysis", "月份分析",
+      "single month", "單月", "month breakdown", "月份明細",
+      "monthly breakdown", "月度明細", "month details", "月份詳情",
+      "analyze month", "分析月份", "month overview", "月份總覽"
+    ],
+    "trigger_phrases": [
+      "Show me monthly analysis",
+      "單月分析",
+      "Analyze July",
+      "分析七月",
+      "Show me July breakdown",
+      "七月明細",
+      "Monthly analysis for August",
+      "八月分析",
+      "Breakdown for September",
+      "九月明細"
+    ]
+  },
+  
+  "compare_months": {
+    "function": "compare_months",
+    "parameters": ["month1", "month2"],
+    "keywords": [
+      "compare months", "雙月對比", "month comparison", "月份比較",
+      "compare", "對比", "comparison", "比較", "vs", "對比",
+      "month vs month", "月份對比", "compare two months", "比較兩個月",
+      "monthly comparison", "月度比較", "side by side", "並排比較",
+      "comparison table", "對比表格", "month comparison table", "月份比較表格",
+      "compare table", "對比表", "month vs month table", "月份對比表格"
+    ],
+    "trigger_phrases": [
+      "Compare July and August",
+      "比較七月和八月",
+      "Show me month comparison",
+      "月份比較",
+      "Compare months",
+      "雙月對比",
+      "July vs August",
+      "七月對比八月",
+      "Compare two months",
+      "比較兩個月",
+      "Show me comparison table for July and August",
+      "七月和八月對比表格",
+      "Display month comparison between January and February",
+      "一月和二月比較表格",
+      "Compare table for July and August",
+      "七月和八月對比表",
+      "Month comparison table for July and August",
+      "七月和八月月份比較表格"
+    ],
+    "dynamic_patterns": [
+      "compare {month1} and {month2}",
+      "compare {month1} vs {month2}",
+      "compare {month1} with {month2}",
+      "comparison between {month1} and {month2}",
+      "month comparison {month1} and {month2}",
+      "compare table {month1} and {month2}",
+      "對比{month1}和{month2}",
+      "比較{month1}和{month2}",
+      "{month1}和{month2}對比",
+      "{month1}和{month2}比較"
+    ]
+  },
+  
+  "yearly_summary": {
+    "function": "yearly_summary",
+    "parameters": [],
+    "keywords": [
+      "yearly summary", "年度總覽", "year summary", "年總結",
+      "annual overview", "年度概覽", "year overview", "年總覽",
+      "yearly overview", "年度總覽", "annual summary", "年度摘要",
+      "year end", "年末", "yearly report", "年度報告"
+    ],
+    "trigger_phrases": [
+      "Show me yearly summary",
+      "年度總覽",
+      "Year summary",
+      "年總結",
+      "Annual overview",
+      "年度概覽",
+      "Year end summary",
+      "年末總結",
+      "Yearly report",
+      "年度報告"
+    ]
+  },
+  
+  "trend_analysis": {
+    "function": "trend_analysis",
+    "parameters": ["category"],
+    "keywords": [
+      "trend analysis", "趨勢分析", "trend", "趨勢", "analysis", "分析",
+      "category trend", "分類趨勢", "spending trend", "支出趨勢",
+      "trend over time", "時間趨勢", "historical trend", "歷史趨勢",
+      "trend line", "趨勢線", "trend chart", "趨勢圖表"
+    ],
+    "trigger_phrases": [
+      "Show me trend analysis",
+      "趨勢分析",
+      "Analyze food trend",
+      "分析伙食費趨勢",
+      "Show me transportation trend",
+      "交通費趨勢",
+      "Trend for leisure",
+      "休閒費趨勢",
+      "Historical trend",
+      "歷史趨勢"
+    ]
+  },
+  
+  "terminal_charts": {
+    "monthly_bar_terminal": {
+      "function": "plot_terminal",
+      "parameters": ["monthly_bar"],
+      "keywords": [
+        "terminal bar", "終端柱狀圖", "monthly bar", "月份柱狀圖",
+        "bar chart", "柱狀圖", "terminal chart", "終端圖表",
+        "monthly chart", "月份圖表", "bar graph", "柱狀圖表",
+        "terminal bar chart", "終端柱狀圖表", "monthly bar chart", "月份柱狀圖表"
+      ],
+      "trigger_phrases": [
+        "Show me monthly bar chart",
+        "月份柱狀圖",
+        "Terminal bar chart",
+        "終端柱狀圖",
+        "Monthly bar graph",
+        "月份柱狀圖表",
+        "Bar chart for July",
+        "七月柱狀圖"
+      ]
+    },
+    
+    "category_horizontal_bar": {
+      "function": "plot_terminal",
+      "parameters": ["category_horizontal_bar"],
+      "keywords": [
+        "horizontal bar", "水平柱狀圖", "category bar", "分類柱狀圖",
+        "horizontal chart", "水平圖表", "category chart", "分類圖表",
+        "horizontal graph", "水平圖形", "category breakdown", "分類明細",
+        "horizontal bar chart", "水平柱狀圖表", "category horizontal", "分類水平圖"
+      ],
+      "trigger_phrases": [
+        "Show me horizontal bar chart",
+        "水平柱狀圖",
+        "Category horizontal bar",
+        "分類水平柱狀圖",
+        "Horizontal bar graph",
+        "水平柱狀圖表",
+        "Category breakdown chart",
+        "分類明細圖表"
+      ]
+    },
+    
+    "trend_line_terminal": {
+      "function": "plot_terminal",
+      "parameters": ["trend_line"],
+      "keywords": [
+        "trend line", "趨勢線", "line chart", "線圖",
+        "terminal line", "終端線圖", "trend chart", "趨勢圖表",
+        "line graph", "線形圖", "terminal trend", "終端趨勢",
+        "trend line chart", "趨勢線圖表", "terminal line chart", "終端線圖表"
+      ],
+      "trigger_phrases": [
+        "Show me trend line chart",
+        "趨勢線圖",
+        "Terminal trend line",
+        "終端趨勢線",
+        "Line chart for food",
+        "伙食費線圖",
+        "Trend line graph",
+        "趨勢線圖表"
+      ]
+    },
+    
+    "comparison_bars_terminal": {
+      "function": "plot_terminal",
+      "parameters": ["comparison_bars"],
+      "keywords": [
+        "comparison bars", "比較柱狀圖", "comparison chart", "比較圖表",
+        "comparison graph", "比較圖形", "month comparison", "月份比較",
+        "comparison bar chart", "比較柱狀圖表", "month comparison chart", "月份比較圖表",
+        "side by side bars", "並排柱狀圖", "comparison bars chart", "比較柱狀圖表"
+      ],
+      "trigger_phrases": [
+        "Show me comparison bar chart",
+        "比較柱狀圖",
+        "Month comparison chart",
+        "月份比較圖表",
+        "Comparison bars",
+        "比較柱狀圖",
+        "Side by side comparison",
+        "並排比較"
+      ]
+    },
+    
+    "stacked_trend_terminal": {
+      "function": "plot_terminal",
+      "parameters": ["stacked_trend"],
+      "keywords": [
+        "stacked trend", "堆疊趨勢", "stacked chart", "堆疊圖表",
+        "stacked graph", "堆疊圖形", "terminal stacked", "終端堆疊",
+        "stacked trend chart", "堆疊趨勢圖表", "terminal stacked chart", "終端堆疊圖表",
+        "stacked area", "堆疊面積", "stacked trend graph", "堆疊趨勢圖形"
+      ],
+      "trigger_phrases": [
+        "Show me stacked trend chart",
+        "堆疊趨勢圖",
+        "Terminal stacked chart",
+        "終端堆疊圖",
+        "Stacked trend graph",
+        "堆疊趨勢圖表",
+        "Stacked area chart",
+        "堆疊面積圖"
+      ]
+    }
+  },
+  
+  "gui_charts": {
+    "pie_chart_gui": {
+      "function": "plot_gui",
+      "parameters": ["pie_chart"],
+      "keywords": [
+        "pie chart", "圓餅圖", "gui pie", "圖形圓餅圖",
+        "pie graph", "圓餅圖形", "gui pie chart", "圖形圓餅圖表",
+        "category pie", "分類圓餅圖", "pie chart gui", "圓餅圖圖形",
+        "circular chart", "圓形圖表", "pie diagram", "圓餅圖表"
+      ],
+      "trigger_phrases": [
+        "Show me pie chart",
+        "圓餅圖",
+        "GUI pie chart",
+        "圖形圓餅圖",
+        "Category pie chart",
+        "分類圓餅圖",
+        "Pie chart for July",
+        "七月圓餅圖",
+        "Circular chart",
+        "圓形圖表"
+      ]
+    },
+    
+    "donut_chart_gui": {
+      "function": "plot_gui",
+      "parameters": ["donut"],
+      "keywords": [
+        "donut chart", "甜甜圈圖", "gui donut", "圖形甜甜圈圖",
+        "donut graph", "甜甜圈圖形", "gui donut chart", "圖形甜甜圈圖表",
+        "ring chart", "環形圖表", "donut diagram", "甜甜圈圖表",
+        "circular donut", "圓形甜甜圈", "donut chart gui", "甜甜圈圖圖形"
+      ],
+      "trigger_phrases": [
+        "Show me donut chart",
+        "甜甜圈圖",
+        "GUI donut chart",
+        "圖形甜甜圈圖",
+        "Donut chart for summary",
+        "總結甜甜圈圖",
+        "Ring chart",
+        "環形圖表",
+        "Circular donut",
+        "圓形甜甜圈"
+      ]
+    },
+    
+    "stacked_area_gui": {
+      "function": "plot_gui",
+      "parameters": ["stacked_area"],
+      "keywords": [
+        "stacked area", "堆疊面積圖", "area chart", "面積圖",
+        "stacked area chart", "堆疊面積圖表", "area graph", "面積圖形",
+        "stacked area graph", "堆疊面積圖形", "area diagram", "面積圖表",
+        "stacked area gui", "堆疊面積圖形", "area chart gui", "面積圖圖形"
+      ],
+      "trigger_phrases": [
+        "Show me stacked area chart",
+        "堆疊面積圖",
+        "GUI stacked area",
+        "圖形堆疊面積圖",
+        "Area chart for trends",
+        "趨勢面積圖",
+        "Stacked area graph",
+        "堆疊面積圖表",
+        "Area diagram",
+        "面積圖表"
+      ]
+    },
+    
+    "trend_line_gui": {
+      "function": "plot_gui",
+      "parameters": ["trend_line"],
+      "keywords": [
+        "gui trend line", "圖形趨勢線", "gui line", "圖形線圖",
+        "gui trend", "圖形趨勢", "trend line gui", "趨勢線圖形",
+        "gui line chart", "圖形線圖表", "gui trend chart", "圖形趨勢圖表",
+        "gui line graph", "圖形線圖形", "gui trend graph", "圖形趨勢圖形"
+      ],
+      "trigger_phrases": [
+        "Show me GUI trend line",
+        "圖形趨勢線",
+        "GUI line chart",
+        "圖形線圖",
+        "GUI trend chart",
+        "圖形趨勢圖表",
+        "GUI trend graph",
+        "圖形趨勢圖形",
+        "Trend line GUI",
+        "趨勢線圖形"
+      ]
+    }
+  },
+  
+  "phase_2_visual_analysis": {
+    "status": "future_implementation",
+    "description": "Visual analysis menus and charts",
+    "note": "To be implemented after Phase 1 is complete",
+    
+    "menu_navigation": {
+      "monthly_analysis": {
+        "menu_path": "3→2→1",
+        "keywords": ["monthly analysis", "月份分析", "monthly", "月份", "analysis", "分析"],
+        "trigger_phrases": [
+          "show me monthly analysis",
+          "月份分析",
+          "monthly analysis menu",
+          "月份分析選單"
+        ]
+      },
+      
+      "comparison": {
+        "menu_path": "3→2→2",
+        "keywords": ["compare", "比較", "comparison", "對比", "compare months", "比較月份"],
+        "trigger_phrases": [
+          "show me comparison",
+          "比較功能",
+          "compare months",
+          "比較月份"
+        ]
+      },
+      
+      "yearly_summary": {
+        "menu_path": "3→2→3",
+        "keywords": ["yearly summary", "年度總覽", "yearly", "年度", "summary", "總覽"],
+        "trigger_phrases": [
+          "show me yearly summary",
+          "年度總覽",
+          "yearly summary menu",
+          "年度總覽選單"
+        ]
+      },
+      
+      "trend_analysis": {
+        "menu_path": "3→2→4",
+        "keywords": ["trend", "趨勢", "trend analysis", "趨勢分析", "analysis", "分析"],
+        "trigger_phrases": [
+          "show me trend analysis",
+          "趨勢分析",
+          "trend analysis menu",
+          "趨勢分析選單"
+        ]
+      }
+    }
+  },
+  
+  "phase_3_comparison": {
+    "status": "future_implementation", 
+    "description": "Month-to-month comparison features",
+    "note": "To be implemented after Phase 2 is complete"
+  },
+  
+  "phase_4_advanced_charts": {
+    "status": "future_implementation",
+    "description": "Advanced charts and visual reports",
+    "note": "To be implemented after Phase 3 is complete"
+  },
+  
+  "phase_5_system_tools": {
+    "status": "future_implementation",
+    "description": "System tools and settings",
+    "note": "To be implemented after Phase 4 is complete"
+  },
+  
+  "implementation_guide": {
+    "phase_1_steps": [
+      "1. Implement basic monthly table routing",
+      "2. Add annual summary routing", 
+      "3. Test with simple user requests",
+      "4. Refine keyword matching",
+      "5. Add error handling"
+    ],
+    
+    "future_phases": [
+      "Phase 2: Add visual analysis menu navigation",
+      "Phase 3: Add comparison features", 
+      "Phase 4: Add advanced charts",
+      "Phase 5: Add system tools"
+    ],
+    
+    "benefits": [
+      "Start simple with core functionality",
+      "Get chatbot working quickly",
+      "Add features incrementally",
+      "Test each phase before moving on",
+      "Users can start using it immediately"
+    ]
+  },
+  
+  "chart_options_menu": {
+    "function": "chart_options_menu",
+    "parameters": [],
+    "keywords": [
+      "chart options", "圖表選項", "chart selection menu", "圖表選擇選單", 
+      "graph options", "圖形選項", "chart types menu", "圖表類型選單",
+      "chart selection", "圖表選擇", "graph selection", "圖形選擇",
+      "chart types", "圖表類型", "graph types", "圖形類型",
+      "menu 4", "選項4", "option 4", "main menu 4", "主選單4",
+      "chart options menu", "圖表選項選單", "display chart options", "顯示圖表選項",
+      "open chart menu", "開啟圖表選單", "visualization options", "視覺化選項"
+    ],
+    "trigger_phrases": [
+      "Show me chart options",
+      "圖表選項",
+      "Chart selection menu",
+      "圖表選擇選單",
+      "Show me graph options",
+      "圖形選項",
+      "Visualization options",
+      "視覺化選項",
+      "Chart types menu",
+      "圖表類型選單",
+      "Show me option 4",
+      "選項4",
+      "Main menu 4",
+      "主選單4",
+      "Display chart options",
+      "顯示圖表選項",
+      "Open chart menu",
+      "開啟圖表選單",
+      "Chart options menu",
+      "圖表選項選單"
+    ]
+  }
+}

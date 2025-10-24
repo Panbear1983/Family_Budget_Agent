@@ -162,7 +162,7 @@ class VisualReportGenerator:
         
         # Monthly spending table
         table = Table(
-            title="📅 2025 年度月別支出",
+            title="📅 2025 年度月別支出 (僅2025年資料)",
             box=box.ROUNDED,
             show_header=True,
             header_style="bold cyan"
@@ -177,7 +177,21 @@ class VisualReportGenerator:
         avg = summary['avg_monthly_spending']
         max_amount = max(monthly.values()) if monthly else 1
         
-        for month, amount in monthly.items():
+        # Create a mapping for Chinese month names to their chronological order
+        chinese_month_order = {
+            '一月': 1, '二月': 2, '三月': 3, '四月': 4, '五月': 5, '六月': 6,
+            '七月': 7, '八月': 8, '九月': 9, '十月': 10, '十一月': 11, '十二月': 12
+        }
+        
+        # Sort months chronologically
+        def get_month_number(month_key):
+            # Extract month name from format like "2025-一月"
+            month_name = month_key.split('-')[1] if '-' in month_key else month_key
+            return chinese_month_order.get(month_name, 999)
+        
+        sorted_monthly = sorted(monthly.items(), key=lambda x: get_month_number(x[0]))
+        
+        for month, amount in sorted_monthly:
             # Scale bar to max spending
             bar_length = int((amount / max_amount) * 35)
             bar = "█" * bar_length
@@ -202,10 +216,12 @@ class VisualReportGenerator:
         
         # Add average line
         table.add_section()
+        avg_bar_length = int((avg / max_amount) * 35)
+        avg_bar = "█" * avg_bar_length
         table.add_row(
             "[bold]月平均[/bold]",
             f"[bold]NT$ {avg:,.0f}[/bold]",
-            "[dim]─── 基準線 ───[/dim]",
+            f"[bold blue]{avg_bar}[/bold blue]",
             "📊"
         )
         

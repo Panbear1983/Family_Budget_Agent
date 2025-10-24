@@ -361,7 +361,7 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
         print("\n選擇模式 (Choose mode):")
         print("─" * 100)
         
-        console.print("   [[green]1[/green]] 🤖 智能問答 (AI Chat) - Natural language Q&A")
+        console.print("   [[green]1[/green]] 🤖 智能菜單導航 ChatBot Navigator - Q&A")
         console.print("   [[green]2[/green]] 📊 視覺化分析 (Visual Analysis) - Tables & Charts")
         console.print("   [[green]x[/green]] 返回 (Back)")
         
@@ -372,92 +372,420 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
             break
         
         elif mode == '1':
-            # AI Chat mode
-            print("\n🤖 智能問答模式 (AI Chat Mode)")
-            print("─" * 100)
-            print("\n✅ 我能回答的問題類型 (What I Can Answer):\n")
-            console.print("   [green]1. 📊 數據查詢 (Data Queries):[/green]")
-            print("      • 「顯示七月數據」/ \"Show July data\"")
-            print("      • 「七月分類統計」/ \"July category breakdown\"")
-            print("      • 「年度總覽」/ \"Show yearly summary\"")
-            print("")
-            console.print("   [green]2. 📈 視覺化分析 (Visualization):[/green]")
-            print("      • 「七月圓餅圖」/ \"July pie chart\"")
-            print("      • 「月度趨勢圖」/ \"Monthly trend chart\"")
-            print("      • 「分類柱狀圖」/ \"Category bar chart\"")
-            print("")
-            console.print("   [green]3. ⚖️  比較分析 (Comparisons):[/green]")
-            print("      • 「比較七月和八月」/ \"Compare July and August\"")
-            print("      • 「顯示對比圖表」/ \"Show comparison chart\"")
-            print("")
-            console.print("   [green]4. 📈 趨勢分析 (Trend Analysis):[/green]")
-            print("      • 「伙食費趨勢」/ \"Food spending trend\"")
-            print("      • 「顯示趨勢圖表」/ \"Show trend chart\"")
-            print("")
-            print("💡 提示: 使用自然語言描述您想要的分析，例如:")
-            print("   • \"顯示七月的支出數據\"")
-            print("   • \"比較七月和八月的花費\"")
-            print("   • \"伙食費的趨勢如何\"")
-            print("   • \"顯示年度總覽表格\"")
-            print("")
-            console.print("   [yellow]📊 需要圖表？ (Need Charts?):[/yellow]")
-            print("      返回主選單選擇 [2] 視覺化分析")
-            print("      Return to main menu and select [2] Visual Analysis")
-            print("")
-            print("💡 請用簡單、具體的問題 (Keep questions simple & specific)")
-            print("\n輸入 'x' 或 'exit' 返回選單")
-            print("─" * 100)
-            
-            while True:
-                question = input("\n您有屁快放(Spit it Dummie): ").strip()
-                
-                if question.lower() in ['exit', 'x', '返回']:
-                    break
-                
-                if not question:
-                    continue
-                
-                print("🤔 AI 思考中...", end='', flush=True)
-                
-                try:
-                    if enhanced_mode and qwen_chat:
-                        # Use simplified Qwen Chat system for function routing
-                        answer = qwen_chat.answer_question(question)
-                    else:
-                        # Fallback to basic mode
-                        budget_data = {
-                            'file': annual_mgr.get_active_budget_file(),
-                            'year': 2025,
-                            'months_with_data': available_months
-                        }
-                        answer = orchestrator.answer_question(question, budget_data)
-                    
-                    print(f"\r💡 助手: {answer}\n")
-                except Exception as e:
-                    print(f"\r❌ 錯誤: {e}\n")
-                    import traceback
-                    traceback.print_exc()
+            # Fast AI Chat mode (using Phase1ChatbotRouter - no Qwen LLM)
+            fast_ai_chat_mode(available_months, categories)
         
         elif mode == '2':
-            # Visual analysis mode
-            if not enhanced_mode:
-                print("\n⚠️  視覺化分析需要 Qwen Chat 模組")
-                input("按 Enter 繼續...")
-                continue
-            
-            from modules.insights.chat_menus import visual_analysis_menu
-            # Create a mock chat_module for compatibility
-            class MockChatModule:
-                def execute(self, function_name, *args):
-                    # Route to function registry
-                    if enhanced_mode and qwen_chat:
-                        return qwen_chat.function_registry.execute_function(function_name, *args)
-                    return f"Function {function_name} not available"
-            
-            mock_chat_module = MockChatModule()
-            visual_analysis_menu(mock_chat_module, available_months, categories)
+            # Fast Visual Analysis mode (using Phase1ChatbotRouter)
+            fast_visual_analysis_mode(available_months, categories)
     
     # Return directly to main menu (no extra Enter needed)
+
+def fast_ai_chat_mode(available_months, categories):
+    """Fast AI Chat mode using Phase1ChatbotRouter (no Qwen LLM)"""
+    print("\n🤖 ChatBot Navigator Q&A (Fast AI Chat Mode)")
+    print("─" * 100)
+    print("⚡ 使用快速關鍵字路由 (Using fast keyword routing)")
+    print("💡 輸入 'help' 查看範例，'exit' 返回主選單")
+    print("─" * 100)
+    
+    # Show help examples immediately when entering the mode
+    show_fast_ai_chat_help()
+    
+    # Initialize the fast router
+    from phase_1_implementation import Phase1ChatbotRouter
+    router = Phase1ChatbotRouter()
+    
+    # Initialize data components
+    data_loader = None
+    function_registry = None
+    budget_chat = None
+    
+    try:
+        # Try to initialize data components (silently)
+        from modules.insights.data_loader import DataLoader
+        from modules.insights.function_registry import FunctionRegistry
+        from modules.insights.budget_chat import BudgetChat
+        from modules.insights.chat_menus import visual_analysis_menu, chart_options_menu
+        
+        import config
+        budget_file = config.BUDGET_PATH
+        
+        if os.path.exists(budget_file):
+            # Initialize data loader (silently)
+            data_loader = DataLoader(budget_file)
+            
+            # Initialize function registry (silently)
+            function_registry = FunctionRegistry()
+            function_registry.set_data_loader(data_loader)
+            
+            # Initialize budget chat system (silently)
+            budget_chat = BudgetChat({'budget_file': budget_file})
+            budget_chat.initialize()
+            
+            # Silent success - no loading messages
+        else:
+            # Silent failure - no error messages
+            pass
+    except Exception as e:
+        # Silent failure - no error messages
+        pass
+    
+    while True:
+        # Get user input
+        user_input = input("\n💬 您想要什麼? (What do you want?): ").strip()
+        
+        # Handle special commands
+        if user_input.lower() in ['exit', 'quit', 'x', 'q', '返回']:
+            print("👋 返回主選單...")
+            break
+        
+        if user_input.lower() == 'help':
+            show_fast_ai_chat_help()
+            continue
+        
+        if not user_input:
+            print("❓ 請輸入指令或輸入 'help' 查看範例")
+            continue
+        
+        # Process the user's prompt
+        print(f"\n🔍 處理中: '{user_input}'")
+        print("-" * 40)
+        
+        result = router.process_user_request(user_input)
+        
+        if result['status'] == 'success':
+            print(f"✅ 成功: 已理解您的請求!")
+            print(f"📋 功能: {result['function']}")
+            print(f"📝 參數: {result['parameters']}")
+            print(f"📄 描述: {result['description']}")
+            
+            # Execute the function
+            try:
+                print(f"\n🎬 執行 {result['function']}...")
+                print("=" * 50)
+                
+                # Handle different function types
+                if result['function'] == 'display_monthly_sheet':
+                    from utils.view_sheets import display_monthly_sheet
+                    display_monthly_sheet(result['parameters'][0])
+                elif result['function'] == 'display_annual_summary':
+                    from utils.view_sheets import display_annual_summary
+                    display_annual_summary()
+                elif result['function'] == 'visual_analysis_menu':
+                    if budget_chat and data_loader:
+                        visual_analysis_menu(budget_chat, available_months, categories)
+                    else:
+                        print("❌ 視覺化分析模組不可用")
+                elif result['function'] == 'chart_options_menu':
+                    if budget_chat and data_loader:
+                        chart_options_menu(budget_chat, available_months, categories)
+                    else:
+                        print("❌ 圖表選項模組不可用")
+                elif result['function'] == 'monthly_analysis':
+                    month = result['parameters'][0] if result['parameters'] else '七月'
+                    if budget_chat:
+                        budget_chat.show_monthly_table(month)
+                        budget_chat.show_category_table(month)
+                    else:
+                        print("❌ 月度分析模組不可用")
+                elif result['function'] == 'compare_months':
+                    month1 = result['parameters'][0] if len(result['parameters']) > 0 else '七月'
+                    month2 = result['parameters'][1] if len(result['parameters']) > 1 else '八月'
+                    if budget_chat:
+                        budget_chat.show_comparison_table(month1, month2)
+                    else:
+                        print("❌ 比較分析模組不可用")
+                elif result['function'] == 'trend_analysis':
+                    category = result['parameters'][0] if result['parameters'] else '伙食费'
+                    if budget_chat:
+                        budget_chat.show_trend_table(category)
+                    else:
+                        print("❌ 趨勢分析模組不可用")
+                elif result['function'] == 'yearly_summary':
+                    if budget_chat:
+                        budget_chat.show_yearly_table()
+                    else:
+                        print("❌ 年度總結模組不可用")
+                elif result['function'] == 'plot_terminal':
+                    chart_type = result['parameters'][0] if result['parameters'] else 'monthly_bar'
+                    if function_registry:
+                        function_registry.execute_function('plot_terminal', chart_type, *result['parameters'][1:])
+                    else:
+                        print("❌ 終端圖表模組不可用")
+                elif result['function'] == 'plot_gui':
+                    chart_type = result['parameters'][0] if result['parameters'] else 'pie'
+                    if function_registry:
+                        function_registry.execute_function('plot_gui', chart_type, *result['parameters'][1:])
+                    else:
+                        print("❌ 圖形圖表模組不可用")
+                else:
+                    print(f"❌ 未知功能: {result['function']}")
+                    print("💡 此功能尚未在快速模式中實現")
+                
+                print("=" * 50)
+                print("✅ 功能執行完成!")
+                
+            except Exception as e:
+                print(f"❌ 執行功能時發生錯誤: {e}")
+                print("💡 這可能是因為數據檔案不存在或有問題")
+        else:
+            print(f"❌ 錯誤: {result['description']}")
+            if 'suggestions' in result:
+                print(f"💡 試試: {', '.join(result['suggestions'][:3])}")
+
+def show_fast_ai_chat_help():
+    """Show comprehensive help examples for fast AI chat mode"""
+    from rich.console import Console
+    console = Console()
+    
+    print("\n📚 快速智能問答範例:")
+    print("-" * 30)
+    
+    console.print("   [green]1. 📊 月度數據 (Monthly Data):[/green]")
+    print("      • 「顯示一月數據」/ \"Show January data\"")
+    print("      • 「七月預算表」/ \"July budget table\"")
+    print("      • 「所有月份」/ \"Show all months\"")
+    print("      • 「年度總覽」/ \"Show yearly summary\"")
+    print("      • 「多年度總覽」/ \"Multi-year summary\"")
+    print("")
+    
+    console.print("   [green]2. 🔍 分析類型 (Analysis Types):[/green]")
+    print("      • 「七月分析」/ \"Monthly analysis for July\"")
+    print("      • 「比較七月和八月」/ \"Compare July and August\"")
+    print("      • 「伙食費趨勢」/ \"Food spending trend\"")
+    print("      • 「年度總結」/ \"Show yearly summary\"")
+    print("")
+    
+    console.print("   [green]3. 📊 終端圖表 (Terminal Charts):[/green]")
+    print("      • 「月份柱狀圖」/ \"Monthly bar chart\"")
+    print("      • 「水平柱狀圖」/ \"Horizontal bar chart\"")
+    print("      • 「趨勢線圖」/ \"Trend line chart\"")
+    print("      • 「比較柱狀圖」/ \"Comparison bar chart\"")
+    print("      • 「堆疊趨勢圖」/ \"Stacked trend chart\"")
+    print("")
+    
+    console.print("   [green]4. 📈 圖形圖表 (GUI Charts):[/green]")
+    print("      • 「圓餅圖」/ \"Pie chart\"")
+    print("      • 「甜甜圈圖」/ \"Donut chart\"")
+    print("      • 「堆疊面積圖」/ \"Stacked area chart\"")
+    print("      • 「圖形趨勢線」/ \"GUI trend line\"")
+    print("")
+    
+    console.print("   [green]5. 🎯 特殊功能 (Special Functions):[/green]")
+    print("      • 「視覺化分析」/ \"Show me visual analysis\"")
+    print("      • 「圖表選項」/ \"Show me chart options\"")
+    print("")
+    
+    print("💡 提示: 使用自然語言描述您想要的分析，例如:")
+    print("   • \"顯示七月的支出數據\"")
+    print("   • \"比較七月和八月的花費\"")
+    print("   • \"伙食費的趨勢如何\"")
+    print("   • \"顯示年度總覽表格\"")
+    print("   • \"圓餅圖\" / \"Pie chart\"")
+    print("")
+    
+    console.print("   [yellow]📊 需要圖表？ (Need Charts?):[/yellow]")
+    print("      返回主選單選擇 [2] 視覺化分析")
+    print("      Return to main menu and select [2] Visual Analysis")
+    print("")
+    
+    print("💡 請用簡單、具體的問題 (Keep questions simple & specific)")
+    print("\n💡 特殊指令:")
+    print("   • 'help' - 顯示此幫助")
+    print("   • 'exit' - 返回主選單")
+
+def fast_visual_analysis_mode(available_months, categories):
+    """Fast visual analysis mode using Phase1ChatbotRouter (no AI model)"""
+    print("\n📊 快速視覺化分析 (Fast Visual Analysis)")
+    print("─" * 100)
+    print("⚡ 使用快速關鍵字路由 (Using fast keyword routing)")
+    print("💡 輸入 'help' 查看範例，'exit' 返回主選單")
+    print("─" * 100)
+    
+    # Initialize the fast router
+    from phase_1_implementation import Phase1ChatbotRouter
+    router = Phase1ChatbotRouter()
+    
+    # Initialize data components
+    data_loader = None
+    function_registry = None
+    budget_chat = None
+    
+    try:
+        # Try to initialize data components (silently)
+        from modules.insights.data_loader import DataLoader
+        from modules.insights.function_registry import FunctionRegistry
+        from modules.insights.budget_chat import BudgetChat
+        from modules.insights.chat_menus import visual_analysis_menu, chart_options_menu
+        
+        import config
+        budget_file = config.BUDGET_PATH
+        
+        if os.path.exists(budget_file):
+            # Initialize data loader (silently)
+            data_loader = DataLoader(budget_file)
+            
+            # Initialize function registry (silently)
+            function_registry = FunctionRegistry()
+            function_registry.set_data_loader(data_loader)
+            
+            # Initialize budget chat system (silently)
+            budget_chat = BudgetChat({'budget_file': budget_file})
+            budget_chat.initialize()
+            
+            # Silent success - no loading messages
+        else:
+            # Silent failure - no error messages
+            pass
+    except Exception as e:
+        # Silent failure - no error messages
+        pass
+    
+    while True:
+        # Get user input
+        user_input = input("\n💬 您想要什麼? (What do you want?): ").strip()
+        
+        # Handle special commands
+        if user_input.lower() in ['exit', 'quit', 'x', 'q', '返回']:
+            print("👋 返回主選單...")
+            break
+        
+        if user_input.lower() == 'help':
+            show_fast_visual_help()
+            continue
+        
+        if not user_input:
+            print("❓ 請輸入指令或輸入 'help' 查看範例")
+            continue
+        
+        # Process the user's prompt
+        print(f"\n🔍 處理中: '{user_input}'")
+        print("-" * 40)
+        
+        result = router.process_user_request(user_input)
+        
+        if result['status'] == 'success':
+            print(f"✅ 成功: 已理解您的請求!")
+            print(f"📋 功能: {result['function']}")
+            print(f"📝 參數: {result['parameters']}")
+            print(f"📄 描述: {result['description']}")
+            
+            # Execute the function
+            try:
+                print(f"\n🎬 執行 {result['function']}...")
+                print("=" * 50)
+                
+                # Handle different function types
+                if result['function'] == 'display_monthly_sheet':
+                    from utils.view_sheets import display_monthly_sheet
+                    display_monthly_sheet(result['parameters'][0])
+                elif result['function'] == 'display_annual_summary':
+                    from utils.view_sheets import display_annual_summary
+                    display_annual_summary()
+                elif result['function'] == 'visual_analysis_menu':
+                    if budget_chat and data_loader:
+                        visual_analysis_menu(budget_chat, available_months, categories)
+                    else:
+                        print("❌ 視覺化分析模組不可用")
+                elif result['function'] == 'chart_options_menu':
+                    if budget_chat and data_loader:
+                        chart_options_menu(budget_chat, available_months, categories)
+                    else:
+                        print("❌ 圖表選項模組不可用")
+                elif result['function'] == 'monthly_analysis':
+                    month = result['parameters'][0] if result['parameters'] else '七月'
+                    if budget_chat:
+                        budget_chat.show_monthly_table(month)
+                        budget_chat.show_category_table(month)
+                    else:
+                        print("❌ 月度分析模組不可用")
+                elif result['function'] == 'compare_months':
+                    month1 = result['parameters'][0] if len(result['parameters']) > 0 else '七月'
+                    month2 = result['parameters'][1] if len(result['parameters']) > 1 else '八月'
+                    if budget_chat:
+                        budget_chat.show_comparison_table(month1, month2)
+                    else:
+                        print("❌ 比較分析模組不可用")
+                elif result['function'] == 'trend_analysis':
+                    category = result['parameters'][0] if result['parameters'] else '伙食费'
+                    if budget_chat:
+                        budget_chat.show_trend_table(category)
+                    else:
+                        print("❌ 趨勢分析模組不可用")
+                elif result['function'] == 'yearly_summary':
+                    if budget_chat:
+                        budget_chat.show_yearly_table()
+                    else:
+                        print("❌ 年度總結模組不可用")
+                elif result['function'] == 'plot_terminal':
+                    chart_type = result['parameters'][0] if result['parameters'] else 'monthly_bar'
+                    if function_registry:
+                        function_registry.execute_function('plot_terminal', chart_type, *result['parameters'][1:])
+                    else:
+                        print("❌ 終端圖表模組不可用")
+                elif result['function'] == 'plot_gui':
+                    chart_type = result['parameters'][0] if result['parameters'] else 'pie'
+                    if function_registry:
+                        function_registry.execute_function('plot_gui', chart_type, *result['parameters'][1:])
+                    else:
+                        print("❌ 圖形圖表模組不可用")
+                else:
+                    print(f"❌ 未知功能: {result['function']}")
+                    print("💡 此功能尚未在快速模式中實現")
+                
+                print("=" * 50)
+                print("✅ 功能執行完成!")
+                
+            except Exception as e:
+                print(f"❌ 執行功能時發生錯誤: {e}")
+                print("💡 這可能是因為數據檔案不存在或有問題")
+        else:
+            print(f"❌ 錯誤: {result['description']}")
+            if 'suggestions' in result:
+                print(f"💡 試試: {', '.join(result['suggestions'][:3])}")
+
+def show_fast_visual_help():
+    """Show help examples for fast visual analysis mode"""
+    print("\n📚 快速視覺化分析範例:")
+    print("-" * 30)
+    print("🗓️ 月度表格:")
+    print("   • 'Show me July' / '顯示七月'")
+    print("   • 'Display January data' / '一月數據'")
+    print("   • 'View August budget' / '八月預算'")
+    
+    print("\n📊 年度總結:")
+    print("   • 'Show annual summary' / '年度總覽'")
+    print("   • 'Display yearly overview' / '年度統計'")
+    
+    print("\n📈 多年度總結 (選項13):")
+    print("   • 'Show me option 13' / '選項13'")
+    print("   • 'Multi-year summary' / '多年度總覽'")
+    
+    print("\n📊 視覺化分析:")
+    print("   • 'Show me visual analysis' / '視覺化分析'")
+    print("   • 'Charts and graphs' / '圖表分析'")
+    
+    print("\n📈 圖表選項:")
+    print("   • 'Show me chart options' / '圖表選項'")
+    print("   • 'Chart selection menu' / '圖表選擇選單'")
+    print("   • 'Graph options' / '圖形選項'")
+    
+    print("\n🔍 分析類型:")
+    print("   • 'Monthly analysis for July' / '七月分析'")
+    print("   • 'Compare July and August' / '比較七月和八月'")
+    print("   • 'Trend analysis for food' / '伙食費趨勢'")
+    print("   • 'Show me yearly summary' / '年度總結'")
+    
+    print("\n📈 圖表和圖形:")
+    print("   • 'Show me pie chart' / '圓餅圖'")
+    print("   • 'Bar chart for July' / '七月柱狀圖'")
+    print("   • 'Trend line chart' / '趨勢線圖'")
+    print("   • 'Donut chart' / '甜甜圈圖'")
+    
+    print("\n💡 特殊指令:")
+    print("   • 'help' - 顯示此幫助")
+    print("   • 'exit' - 返回主選單")
 
 def system_tools(annual_mgr):
     """System tools and settings"""

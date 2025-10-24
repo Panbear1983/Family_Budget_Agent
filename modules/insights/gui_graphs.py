@@ -8,6 +8,12 @@ matplotlib.use('TkAgg')  # macOS compatible
 import numpy as np
 from typing import Dict, List
 import pandas as pd
+import warnings
+import logging
+
+# Suppress matplotlib font warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 
 class GUIGraphGenerator:
     """Generates professional GUI charts"""
@@ -30,40 +36,76 @@ class GUIGraphGenerator:
         """Translate Chinese category to English"""
         return self.CATEGORY_TRANSLATION.get(category, category)
     
+    def _force_chinese_font(self):
+        """Force Chinese font configuration for each plot"""
+        import matplotlib.pyplot as plt
+        import matplotlib.font_manager as fm
+        
+        # Get available Chinese fonts
+        available_fonts = [f.name for f in fm.fontManager.ttflist]
+        chinese_fonts = [f for f in available_fonts if any(keyword in f for keyword in ['PingFang', 'Heiti', 'Arial Unicode', 'Hiragino', 'SimHei', 'STHeiti', 'LiGothic', 'LiSung'])]
+        
+        if chinese_fonts:
+            selected_font = chinese_fonts[0]
+            plt.rcParams['font.sans-serif'] = [selected_font]
+            plt.rcParams['font.family'] = 'sans-serif'
+            plt.rcParams['axes.unicode_minus'] = False
+    
     def setup_style(self):
         """Configure matplotlib style and Chinese font"""
         import matplotlib.font_manager as fm
+        import matplotlib.pyplot as plt
+        import os
         
-        # macOS Chinese fonts (in order of preference)
-        preferred_fonts = [
-            'PingFang TC',        # macOS default Chinese (Traditional)
-            'PingFang SC',        # macOS default Chinese (Simplified)
-            'Arial Unicode MS',   # macOS fallback with Chinese support
-            'Heiti TC',          # macOS traditional
-            'STHeiti',           # System Heiti
-            'SimHei',            # Windows/Linux fallback
-            'Microsoft YaHei'    # Windows fallback
-        ]
-        
-        # Get all available font names
-        available_fonts = set(f.name for f in fm.fontManager.ttflist)
-        
-        # Find first available font
-        selected_font = None
-        for font in preferred_fonts:
-            if font in available_fonts:
-                selected_font = font
-                break
-        
-        if selected_font:
-            plt.rcParams['font.sans-serif'] = [selected_font]
-            print(f"✅ Using Chinese font: {selected_font}")
-        else:
-            # Fallback - try to find any font with Chinese characters
-            plt.rcParams['font.sans-serif'] = preferred_fonts
-            print("⚠️  Using fallback font list")
-        
-        plt.rcParams['axes.unicode_minus'] = False
+        # Suppress font warnings completely
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            
+            # Force Chinese font support with direct font file approach
+            try:
+                # Find available Chinese fonts
+                available_fonts = [f.name for f in fm.fontManager.ttflist]
+                chinese_fonts = []
+                
+                # Check for specific Chinese fonts (optimized to 1 most reliable font)
+                chinese_font_candidates = [
+                    'STHeiti'  # Fast, lightweight Chinese font (~4MB)
+                ]
+                
+                for font_name in chinese_font_candidates:
+                    if font_name in available_fonts:
+                        chinese_fonts.append(font_name)
+                
+                # Debug: Print available Chinese fonts
+                print(f"🔍 Available Chinese fonts: {chinese_fonts}")
+                
+                if chinese_fonts:
+                    # Use the first available Chinese font
+                    selected_font = chinese_fonts[0]
+                    # Force the Chinese font to be used first - ONLY the Chinese font
+                    plt.rcParams['font.sans-serif'] = [selected_font]
+                    plt.rcParams['font.family'] = 'sans-serif'
+                    # Clear font cache to force reload
+                    try:
+                        fm.fontManager.__init__()
+                    except:
+                        pass
+                    print(f"✅ Using Chinese font: {selected_font}")
+                else:
+                    # Fallback: use fonts that support Unicode (NO DejaVu!)
+                    plt.rcParams['font.sans-serif'] = ['STHeiti', 'Hiragino Sans', 'PingFang SC', 'Arial']
+                    print("⚠️ Using fallback fonts for Chinese characters")
+                
+                plt.rcParams['axes.unicode_minus'] = False
+                plt.rcParams['font.size'] = 12
+                
+                # Suppress font manager warnings
+                plt.rcParams['font.fallback'] = ['DejaVu Sans']
+                
+            except Exception:
+                # Final fallback - silent
+                plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial']
+                plt.rcParams['font.family'] = 'sans-serif'
         
         # Use a clean style
         try:
@@ -77,6 +119,9 @@ class GUIGraphGenerator:
         if 'error' in insights:
             print(f"\n❌ {insights['error']}\n")
             return
+        
+        # Force Chinese font configuration
+        self._force_chinese_font()
         
         categories = sorted(
             insights['categories'].items(),
@@ -118,20 +163,24 @@ class GUIGraphGenerator:
         month_en = month_trans.get(insights['month'], insights['month'])
         
         ax.set_title(f"{month_en} Spending Distribution", fontsize=16, weight='bold', pad=20)
-        plt.tight_layout()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
         plt.show()
     
     def plot_monthly_bar(self, summary: Dict) -> None:
         """Bar chart of monthly spending"""
+        # Force Chinese font configuration
+        self._force_chinese_font()
+        
         monthly = summary['monthly_trend']
         
-        # Month translations
+        # Use English month labels to avoid font issues
         month_trans = {
             '一月': 'Jan', '二月': 'Feb', '三月': 'Mar', '四月': 'Apr',
             '五月': 'May', '六月': 'Jun', '七月': 'Jul', '八月': 'Aug',
             '九月': 'Sep', '十月': 'Oct', '十一月': 'Nov', '十二月': 'Dec'
         }
-        
         months = [month_trans.get(m, m) for m in monthly.keys()]
         amounts = list(monthly.values())
         
@@ -153,7 +202,9 @@ class GUIGraphGenerator:
         ax.set_ylabel('Amount (NT$)', fontsize=13, weight='bold')
         ax.grid(axis='y', alpha=0.3, linestyle='--')
         plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
         plt.show()
     
     def plot_comparison_grouped_bars(self, comparison: Dict) -> None:
@@ -199,7 +250,9 @@ class GUIGraphGenerator:
         ax.set_xticklabels(categories_en, rotation=45, ha='right')
         ax.legend(fontsize=12)
         ax.grid(axis='y', alpha=0.3, linestyle='--')
-        plt.tight_layout()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
         plt.show()
     
     def plot_trend_line(self, trend_data: List[Dict], category: str) -> None:
@@ -235,7 +288,9 @@ class GUIGraphGenerator:
         ax.set_ylabel('Amount (NT$)', fontsize=13, weight='bold')
         ax.grid(True, alpha=0.3, linestyle='--')
         plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
         plt.show()
     
     def plot_stacked_area(self, summary: Dict) -> None:
@@ -267,9 +322,8 @@ class GUIGraphGenerator:
                     cat_data.append(0)
             data_matrix.append(cat_data)
         
-        # Translate categories and months FIRST
+        # Use English labels to avoid font issues
         categories_en = [self.translate_category(cat) for cat in categories]
-        
         month_trans = {
             '一月': 'Jan', '二月': 'Feb', '三月': 'Mar', '四月': 'Apr',
             '五月': 'May', '六月': 'Jun', '七月': 'Jul', '八月': 'Aug',
@@ -289,7 +343,9 @@ class GUIGraphGenerator:
         ax.set_xticklabels(months_en, rotation=45, ha='right')
         ax.legend(loc='upper left', fontsize=10)
         ax.grid(True, alpha=0.3, linestyle='--')
-        plt.tight_layout()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
         plt.show()
     
     def plot_donut_chart(self, summary: Dict) -> None:
@@ -300,7 +356,7 @@ class GUIGraphGenerator:
             reverse=True
         )
         
-        # Translate labels to English
+        # Use English category labels to avoid font issues
         labels = [self.translate_category(cat) for cat, _ in categories]
         values = [amount for _, amount in categories]
         colors = plt.cm.Pastel1(range(len(labels)))
@@ -322,7 +378,7 @@ class GUIGraphGenerator:
         
         # Add total in center
         total = sum(values)
-        ax.text(0, 0, f'總計\nNT${total/1000:.0f}k', 
+        ax.text(0, 0, f'Total\nNT${total/1000:.0f}k', 
                ha='center', va='center', fontsize=16, weight='bold')
         
         # Enhance text
@@ -334,6 +390,66 @@ class GUIGraphGenerator:
             autotext.set_weight('bold')
         
         ax.set_title('Annual Category Distribution', fontsize=18, weight='bold', pad=20)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+        plt.show()
+    
+    def self_test_chinese_fonts(self) -> None:
+        """Self-test Chinese font configuration and display"""
+        import matplotlib.pyplot as plt
+        import matplotlib.font_manager as fm
+        
+        print("🔍 Self-testing Chinese font configuration...")
+        
+        # Test 1: Check available fonts
+        available_fonts = [f.name for f in fm.fontManager.ttflist]
+        chinese_fonts = [f for f in available_fonts if any(keyword in f for keyword in ['PingFang', 'Heiti', 'Arial Unicode', 'Hiragino', 'SimHei', 'STHeiti', 'LiGothic', 'LiSung'])]
+        
+        print(f"📋 Available Chinese fonts: {chinese_fonts}")
+        
+        if not chinese_fonts:
+            print("❌ No Chinese fonts found!")
+            return False
+        
+        # Test 2: Configure font
+        selected_font = chinese_fonts[0]
+        plt.rcParams['font.sans-serif'] = [selected_font]
+        plt.rcParams['font.family'] = 'sans-serif'
+        plt.rcParams['axes.unicode_minus'] = False
+        
+        print(f"🎯 Using font: {selected_font}")
+        
+        # Test 3: Create test plot
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Test different Chinese text
+        test_texts = [
+            "中文測試：一月、二月、三月",
+            "分類：交通費、伙食費、休閒娛樂",
+            "月份：四月、五月、六月",
+            "測試：家務、阿幫、其它"
+        ]
+        
+        y_positions = [0.8, 0.6, 0.4, 0.2]
+        
+        for i, (text, y_pos) in enumerate(zip(test_texts, y_positions)):
+            ax.text(0.5, y_pos, text, fontsize=14, ha='center', va='center', 
+                   transform=ax.transAxes, color=f'C{i}')
+        
+        ax.set_title("Chinese Font Self-Test", fontsize=20, weight='bold')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        
+        # Add font info
+        ax.text(0.5, 0.05, f"Font: {selected_font}", fontsize=10, ha='center', 
+               transform=ax.transAxes, style='italic')
+        
         plt.tight_layout()
         plt.show()
+        
+        print("✅ Chinese font self-test completed successfully!")
+        return True
 

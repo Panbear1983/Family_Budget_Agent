@@ -251,7 +251,10 @@ class AnnualManager(BaseModule):
             List of file paths, sorted by year (oldest first)
         """
         current_year = datetime.now().year
+        # Load current year and previous year, but exclude 2024 specifically
         years = list(range(current_year - num_years + 1, current_year + 1))
+        # Filter out 2024 data specifically
+        years = [year for year in years if year != 2024]
         
         files = []
         for year in years:
