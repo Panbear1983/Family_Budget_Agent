@@ -364,6 +364,8 @@ Family_Budget_Agent/
 │   │   ├── chat_menus.py    # Chat interface menus
 │   │   ├── data_loader.py   # Excel data loader
 │   │   ├── multi_year_data_loader.py # Multi-year data support
+│   │   ├── insight_generator.py # Generate insights and summaries
+│   │   ├── trend_analyzer.py # Analyze category trends over time
 │   │   ├── gui_graphs.py    # Matplotlib charts
 │   │   ├── terminal_graphs.py # ASCII charts
 │   │   ├── visual_report_generator.py # Rich terminal reports
