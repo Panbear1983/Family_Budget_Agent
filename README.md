@@ -47,11 +47,11 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
    - Both methods use `openpyxl` to modify the master OneDrive file
    - Auto-fill dates, edit expenses by category, all with change previews
 
-4. **Multi-LLM Intelligence**
-   - **Qwen3:8b** handles fast structured tasks (parsing, categorization)
-   - **GPT-OSS:20b** provides deep reasoning (forecasts, advice, explanations)
-   - Automatic collaboration: Uses the right model for each task
-   - Hybrid workflows: Fast model extracts → Smart model analyzes
+4. **AI-Powered Intelligence**
+   - **Qwen3:8b** handles all AI tasks (parsing, categorization, reasoning)
+   - Natural language routing to existing functions
+   - Simplified single-model approach for reliability
+   - Function-based responses for consistent results
 
 5. **Privacy-First Architecture**
    - Zero data leaves your computer (no cloud AI APIs)
@@ -61,12 +61,12 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
 
 ### Performance Snapshot
 
-| Capability | Speed | Accuracy |
-|------------|-------|----------|
-| Process 45 transactions (CSV → Excel) | < 5 seconds | 95%+ categorization |
-| Answer simple budget question | < 1 second | 98% accuracy |
-| Complex trend analysis with charts | 5-15 seconds | 90% accuracy |
-| Detect duplicate transactions | < 2 seconds | 98% detection rate |
+| Capability | Speed | Reliability |
+|------------|-------|-------------|
+| Process 45 transactions (CSV → Excel) | 3-8 seconds | High (dictionary + LLM fallback) |
+| Answer simple budget question | 1-3 seconds | Function-based routing |
+| Complex trend analysis with charts | 5-15 seconds | Data-driven insights |
+| Detect duplicate transactions | 2-5 seconds | Dictionary + fuzzy matching |
 | Bilingual transaction handling | Real-time | Seamless |
 
 ---
@@ -76,10 +76,10 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
 > **📷 SCREENSHOT PLACEMENT 1: Main Menu Interface**
 > 
 > *Insert screenshot showing the main menu with options:*
-> *- [1] View Budget*
-> *- [2] Update Monthly Budget* 
-> *- [3] Budget Chat*
-> *- [4] System Tools*
+> *- [1] 📊 查看 2025 年預算表 (View 2025 Budget)*
+> *- [2] 📥 更新每月預算 (Update Monthly Budget - Me + Wife)*
+> *- [3] 💬 預算分析對話 (Budget Chat & Insights)*
+> *- [4] ⚙️ 系統工具 (System Tools)*
 
 > **📷 SCREENSHOT PLACEMENT 2: Budget View Terminal**
 > 
@@ -110,8 +110,8 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
 - **Runtime:** Python 3.11+ with virtual environment
 - **AI Engine:** Ollama (local LLM server)
 - **Storage:** OneDrive Excel file → **`[YEAR]年開銷表（NT）.xlsx`** (auto-updates yearly)
-- **Models:** Qwen3:8b (5.2GB) + GPT-OSS:20b (13GB)
-- **RAM Required:** ~20GB with both models loaded
+- **Models:** Qwen3:8b (5.2GB) only
+- **RAM Required:** ~5.2GB with Qwen model loaded
 
 ### Data Flow Architecture
 
@@ -124,8 +124,8 @@ MONTHLY BANK EXPORTS                 PROCESSING                         STORAGE 
                          │           └──────────────┘                  │  （NT）.xlsx        │
 ┌──────────────────────┐ │                  ↓                          │                     │
 │ wife_august.csv      │─┘           ┌──────────────┐                  │ Sheet: 8月          │
-│ (Carrefour + Misc)   │             │ GPT-OSS:20b  │◀──Read/Analyze──│ Sheet: 年總計       │
-└──────────────────────┘             │ (Refine &    │                  └─────────────────────┘
+│ (Carrefour + Misc)   │             │   Qwen3:8b   │◀──Read/Analyze──│ Sheet: 年總計       │
+└──────────────────────┘             │ (Process &   │                  └─────────────────────┘
                                      │  Analyze)    │                           ↕
        Manual Entry ────────────────────────┐       │                  ┌─────────────────────┐
 ┌──────────────────────┐                    │       │                  │ Cell-by-Cell Editor │
@@ -206,44 +206,43 @@ The system automatically handles year transitions with **zero manual interventio
 └─────────────────────────────────────────────────────────┘
 ```
 
-### The Dual-LLM Mix Model Strategy
+### The Qwen-Only AI Strategy
 
 ```
 USER INPUT (CSV or Question)
         ↓
-   ORCHESTRATOR decides routing
+   ORCHESTRATOR routes to Qwen
         ↓
     ┌───────────────────────────────┐
     │   TASK TYPE CLASSIFICATION    │
     └───────────────────────────────┘
-        ↓                    ↓
-  STRUCTURED TASK      REASONING TASK
-        ↓                    ↓
-┌──────────────┐      ┌──────────────┐
-│  Qwen3:8b    │      │ GPT-OSS:20b  │
-│  (5.2GB)     │      │  (13GB)      │
-├──────────────┤      ├──────────────┤
-│ • CSV parse  │      │ • Explain    │
-│ • Categorize │      │ • Forecast   │
-│ • Extract    │      │ • Advise     │
-│ • Validate   │      │ • Reason     │
-│ Speed: ~5s   │      │ Speed: ~15s  │
-│ Conf: 88%    │      │ Conf: 95%    │
-└──────────────┘      └──────────────┘
-        ↓                    ↓
-    If uncertain      Always certain
-    (< 85% conf)             ↓
-        ↓────────────────────┘
-                ↓
-         HYBRID RESULT
-     (Best of both worlds)
+        ↓
+  ALL TASKS → QWEN3:8B
+        ↓
+┌──────────────────────────────┐
+│         Qwen3:8b             │
+│        (5.2GB)                │
+├──────────────────────────────┤
+│ • CSV parse & categorize     │
+│ • Natural language routing   │
+│ • Function-based responses   │
+│ • Data analysis & insights   │
+│ Speed: ~3-8s                 │
+│ Reliability: High            │
+└──────────────────────────────┘
+        ↓
+   FUNCTION ROUTING
+   (Existing capabilities)
+        ↓
+    DIRECT RESULTS
+   (Fast & consistent)
 ```
 
 **Why This Works:**
-- ⚡ **80% of tasks** use fast Qwen (instant results)
-- 🧠 **20% of tasks** use GPT-OSS (deep insights)
-- 🤝 **Collaboration** when needed (Qwen extracts → GPT-OSS reasons)
-- 💰 **Cost-efficient** (use powerful model only when needed)
+- ⚡ **100% of tasks** use reliable Qwen (consistent results)
+- 🎯 **Function routing** for predictable responses
+- 🔧 **Simplified architecture** for better reliability
+- 💰 **Resource efficient** (single model, lower RAM usage)
 
 ---
 
@@ -272,30 +271,27 @@ Merge your + wife's CSV exports:
 ```
 CSV Files (Me + Wife)
     ↓
-Qwen3:8b parses & categorizes (88% confident)
+Qwen3:8b parses & categorizes
     ↓
-GPT-OSS refines edge cases (12%)
+Dictionary mapping (95% handled)
+    ↓
+LLM fallback for edge cases (5%)
     ↓
 Merge with existing Excel
     ↓
 Update OneDrive file
     ↓
-Initial insights generated
+Function-based insights generated
 ```
 
 ### 3. Budget Chat & Insights 💬
 ```
 AI-powered chat with your budget data:
 - Ask questions in Chinese or English
-- Get instant answers with confidence scores
+- Get instant answers via function routing
 - See visual reports & graphs
-- Receive personalized advice
+- Receive data-driven insights
 ```
-
-**3-Tier Data Access:**
-- **Tier 1** (Python): Instant answers (<1s) - 80% of questions
-- **Tier 2** (LLM + Summary): Fast answers (~5s) - 15% of questions  
-- **Tier 3** (LLM + Full Data): Complete answers (~15s) - 5% of questions
 
 ### 4. System Tools ⚙️
 ```
@@ -386,19 +382,18 @@ Family_Budget_Agent/
 
 ## ⚙️ Configuration
 
-### Swap LLM Models (2 Lines!)
+### LLM Configuration
 
 Edit `config.py`:
 
 ```python
-# Change these two lines:
+# Current configuration (Qwen-only):
 STRUCTURED_LLM = "qwen3:8b"      # Fast structured tasks
-REASONING_LLM = "gpt-oss:20b"    # Deep reasoning
+REASONING_LLM = "qwen3:8b"       # Use Qwen for both structured and reasoning tasks
 
 # Alternative options:
-# STRUCTURED_LLM = "qwen2.5:14b"  # Larger Qwen
-# REASONING_LLM = "llama3:70b"    # Larger reasoning model
-# REASONING_LLM = "qwen3:8b"      # Use same model for both (simpler)
+# STRUCTURED_LLM = "qwen2.5:14b"  # Larger Qwen model
+# REASONING_LLM = "qwen2.5:14b"  # Use larger model for both
 ```
 
 Restart → New models active!
@@ -485,16 +480,13 @@ Key packages:
 
 ### 3. Install Ollama Models
 ```bash
-ollama pull qwen3:8b       # Fast model (5.2GB)
-ollama pull gpt-oss:20b    # Reasoning model (13GB)
+ollama pull qwen3:8b       # AI model (5.2GB)
 ```
 
 ### 4. Configure OneDrive Path
 ```bash
-# Find your budget file
-python utils/find_budget.py
-
-# Update config.py with the path
+# Update config.py with your OneDrive path:
+# ONEDRIVE_PATH = "/Users/yourname/Library/CloudStorage/OneDrive-Personal/Documents"
 ```
 
 ### 5. Run!
@@ -516,9 +508,10 @@ python _main.py
 5. Provide file paths
 6. System processes:
    ✅ Qwen categorizes 42/45 transactions (93%)
-   🤔 GPT-OSS refines 3 uncertain transactions
+   📊 Dictionary mapping handles 40/45 (89%)
+   🤖 LLM fallback handles 5/45 (11%)
    ✅ Merged to Excel
-   💡 Initial insights: "August ↑15% vs July, mainly food"
+   💡 Function-based insights: "August ↑15% vs July, mainly food"
 7. Done! (~3 minutes total)
 ```
 
@@ -527,14 +520,12 @@ python _main.py
 ```
 You: 七月花了多少？
 Assistant: 七月總支出 NT$27,300
-🟢 信心度: ████████████████████ 95% (高)
 
 You: 為什麼八月增加？
 Assistant: 📈 八月支出增加 15% 主要因為:
 • 伙食費 ↑ NT$3,200 (更多外食)
 • 休閒娛樂 ↑ NT$2,000 (8/15 特殊支出)
 建議: 檢視週五外食頻率
-🟡 信心度: ██████████████░░░░░░ 78% (中等)
 
 You: Show me a chart
 Assistant: [Terminal bar chart appears]
@@ -622,26 +613,25 @@ Choose month: 7 (July)
 
 | Metric | Performance |
 |--------|-------------|
-| CSV parsing (45 tx) | < 5 seconds |
-| Category accuracy | 95%+ |
-| Duplicate detection | 98%+ |
-| Simple chat query | < 1 second |
+| CSV parsing (45 tx) | 3-8 seconds |
+| Dictionary mapping | 95% of transactions |
+| LLM fallback | 5% of transactions |
+| Simple chat query | 1-3 seconds |
 | Complex analysis | 5-15 seconds |
 | Module reload | Instant |
-| Memory usage | ~20GB (both LLMs loaded) |
+| Memory usage | ~5.2GB (Qwen only) |
 
 ---
 
 ## 🚧 Current Status
 
 ### ✅ Production Ready
-- ✅ CSV processing with dual-LLM
+- ✅ CSV processing with Qwen + dictionary mapping
 - ✅ Monthly budget merging
 - ✅ Annual file management
 - ✅ OneDrive sync integration
-- ✅ AI Chat (3-tier data access)
+- ✅ AI Chat (function-based routing)
 - ✅ Visual reports (terminal + GUI)
-- ✅ Confidence tracking
 - ✅ Bilingual support (中文/English)
 
 ### ⚠️ Known Limitations
@@ -665,7 +655,6 @@ Choose month: 7 (July)
 ```bash
 ollama list                 # Check installed models
 ollama pull qwen3:8b        # Install if missing
-ollama pull gpt-oss:20b
 ```
 
 ### OneDrive file not found?
@@ -684,8 +673,7 @@ ls -la ~/Library/CloudStorage/OneDrive-Personal/Documents/${YEAR}年開銷表（
 # For 2025 specifically:
 ls -la ~/Library/CloudStorage/OneDrive-Personal/Documents/2025年開銷表（NT）.xlsx
 
-# Or use helper script
-python utils/find_budget.py  # Auto-locate file
+# Check if file exists manually
 
 # Then update ONEDRIVE_PATH in config.py if needed
 ```
@@ -759,8 +747,8 @@ Personal project - feel free to adapt for your own use.
 ---
 
 **Version:** 2.0.0  
-**Architecture:** Modular Plugin System with Dual-LLM Mix Model  
-**LLMs:** Qwen3:8b (structured) + GPT-OSS:20b (reasoning)  
+**Architecture:** Modular Plugin System with Qwen-Only AI  
+**LLM:** Qwen3:8b (all tasks)  
 **Status:** Production Ready ✅  
 
 ---
