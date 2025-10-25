@@ -33,8 +33,15 @@ class VisualReportGenerator:
         # Add rows (no truncation - show all data)
         rows_to_show = df if limit is None else df.head(limit)
         for idx, row in rows_to_show.iterrows():
+            # Format date to show only date part (remove time)
+            date_value = row.get('date', '')
+            if hasattr(date_value, 'date'):
+                formatted_date = date_value.date()
+            else:
+                formatted_date = str(date_value).split(' ')[0] if ' ' in str(date_value) else str(date_value)
+            
             table.add_row(
-                str(row.get('date', '')),  # Date
+                str(formatted_date),  # Date (without time)
                 str(row.get('category', '')),  # Category
                 f"NT$ {row.get('amount', 0):,.0f}"  # Amount
             )
@@ -278,11 +285,11 @@ class VisualReportGenerator:
         table.add_column("變化", justify="right", width=12)
         
         amounts = [d['amount'] for d in trend_data]
-        max_amount = max(amounts) if amounts else 1
+        max_amount = max(amounts) if amounts and max(amounts) > 0 else 1
         
         for i, item in enumerate(trend_data):
             amount = item['amount']
-            bar_length = int((amount / max_amount) * 30)
+            bar_length = int((amount / max_amount) * 30) if max_amount > 0 else 0
             bar = "█" * bar_length
             
             # Calculate change from previous month

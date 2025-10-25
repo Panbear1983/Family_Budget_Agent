@@ -8,6 +8,8 @@ from .data_loader import DataLoader
 from .visual_report_generator import VisualReportGenerator
 from .terminal_graphs import TerminalGraphGenerator
 from .gui_graphs import GUIGraphGenerator
+from .insight_generator import InsightGenerator
+from .trend_analyzer import TrendAnalyzer
 
 class BudgetChat(BaseModule):
     """Main Budget Chat module - integrates all insight components"""
@@ -25,6 +27,10 @@ class BudgetChat(BaseModule):
         self.visual_report = VisualReportGenerator()
         self.terminal_graph = TerminalGraphGenerator(self.data_loader)
         self.gui_graph = GUIGraphGenerator(self.data_loader)
+        
+        # Analysis components
+        self.insight_generator = InsightGenerator(self.data_loader)
+        self.trend_analyzer = TrendAnalyzer(self.data_loader)
         
         # LLM orchestrator (set externally)
         self.orchestrator = None
@@ -81,12 +87,16 @@ class BudgetChat(BaseModule):
     # Visual display methods
     def show_monthly_table(self, month: str) -> None:
         """Show monthly transactions table"""
-        df = self.data_loader.load_month(month)
+        # Extract month name from format like "2025-九月" -> "九月"
+        month_name = month.split('-')[1] if '-' in month else month
+        df = self.data_loader.load_month(month_name)
         self.visual_report.show_monthly_table(month, df)
     
     def show_category_table(self, month: str) -> None:
         """Show category breakdown table"""
-        insights = self.insight_generator.generate_monthly_insights(month)
+        # Extract month name from format like "2025-九月" -> "九月"
+        month_name = month.split('-')[1] if '-' in month else month
+        insights = self.insight_generator.generate_monthly_insights(month_name)
         self.visual_report.show_category_breakdown_table(insights)
     
     def show_comparison_table(self, month1: str, month2: str) -> str:

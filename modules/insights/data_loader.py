@@ -100,6 +100,11 @@ class DataLoader:
         all_data = self.load_all_data()
         return all_data.get(month)
     
+    def get_available_months(self) -> List[str]:
+        """Get list of available months"""
+        data = self.load_all_data(silent=True)
+        return list(data.keys())
+    
     def get_summary_stats(self, silent: bool = False) -> Dict:
         """Get quick summary statistics"""
         data = self.load_all_data(silent=silent)

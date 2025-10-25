@@ -60,10 +60,14 @@ class TerminalGraphGenerator:
         plt.ylabel("Amount (NT$ 1000)")
         
         # Set uniform 50K increments on y-axis
-        max_amount = max(amounts)
-        y_max = ((int(max_amount) // 50) + 1) * 50  # Round up to nearest 50K
-        y_ticks = list(range(0, y_max + 1, 50))  # 0, 50, 100, 150, 200, etc.
-        plt.yticks(y_ticks)
+        if amounts:
+            max_amount = max(amounts)
+            y_max = ((int(max_amount) // 50) + 1) * 50  # Round up to nearest 50K
+            y_ticks = list(range(0, y_max + 1, 50))  # 0, 50, 100, 150, 200, etc.
+            plt.yticks(y_ticks)
+        else:
+            # No data case
+            plt.yticks([0, 50, 100])
         
         plt.theme('dark')
         plt.plotsize(100, 20)
