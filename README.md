@@ -28,21 +28,8 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
 
 ### What It Does Today (Production Ready ✅)
 
-1. **Self-Parsing Budget Processing**
+1. **Category Self-Parsing Capable**
    - Automatically merges monthly CSV/Excel exports from multiple people
-```
-     2025年開銷表（NT）.xlsx
-┌─────────────────┐
-│ 類別 (Category)   │
-├─────────────────┤
-│ 交通費           │ ← Peter's Transportation + Dolly's 交通
-│ 伙食費           │ ← Peter's Food + Dolly's 吃吃喝喝
-│ 休閒/娛樂        │ ← Peter's Leisure + Dolly's 交際娛樂
-│ 家務            │ ← Peter's Home & Housing + Dolly's 5 categories
-│ 阿幫            │ ← Peter's Pet + Dolly's 幫比
-│ 其它            │ ← Peter's Others + Dolly's 分期付款
-└─────────────────┘
-```  
    - LLM-powered categorization with 95%+ accuracy
    - Handles bilingual transaction descriptions seamlessly
    - Detects duplicates and outliers with explanations
@@ -158,6 +145,21 @@ MONTHLY BANK EXPORTS                 PROCESSING                         STORAGE 
                                      │  get insights)   │
                                      └──────────────────┘
 ```
+
+### Category Mapping Table
+```
+     2025年開銷表（NT）.xlsx
+┌─────────────────┐
+│ 類別 (Category)   │
+├─────────────────┤
+│ 交通費           │ ← Peter's Transportation + Dolly's 交通
+│ 伙食費           │ ← Peter's Food + Dolly's 吃吃喝喝
+│ 休閒/娛樂        │ ← Peter's Leisure + Dolly's 交際娛樂
+│ 家務            │ ← Peter's Home & Housing + Dolly's 5 categories
+│ 阿幫            │ ← Peter's Pet + Dolly's 幫比
+│ 其它            │ ← Peter's Others + Dolly's 分期付款
+└─────────────────┘
+```  
 
 ### 🗓️ Annual Year Transition System
 
