@@ -42,7 +42,7 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
 │ 阿幫            │ ← Peter's Pet + Dolly's 幫比
 │ 其它            │ ← Peter's Others + Dolly's 分期付款
 └─────────────────┘
-```
+```  
    - LLM-powered categorization with 95%+ accuracy
    - Handles bilingual transaction descriptions seamlessly
    - Detects duplicates and outliers with explanations
