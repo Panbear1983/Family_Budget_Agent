@@ -93,7 +93,7 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
 <img width="853" height="759" alt="image" src="https://github.com/user-attachments/assets/a6bd9422-7eae-468a-b581-88876edded28" />
 
 
-> **AI Chat Interface**
+> **AI Chat Interface (Duel Language EN-CN)**
 <img width="505" height="857" alt="image" src="https://github.com/user-attachments/assets/bdf091e1-e5fb-4ca5-9522-bb3ceaf6ac0e" />
 <img width="884" height="614" alt="image" src="https://github.com/user-attachments/assets/c36b92e2-38c3-4307-8c83-969760cb9c01" />
 <img width="683" height="196" alt="image" src="https://github.com/user-attachments/assets/6efd3837-58ec-45ee-a3a1-b74a8f625f80" />
