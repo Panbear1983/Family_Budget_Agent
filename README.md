@@ -81,21 +81,16 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
 <img width="722" height="1051" alt="image" src="https://github.com/user-attachments/assets/8b05f46f-7330-4196-8663-c40c81981431" />
 
 
-> **Excel File Structure (Parser Feature)**
-> 
-> *Insert screenshot showing the OneDrive Excel file with monthly sheets (一月-十二月) and the annual summary sheet*
+> **Excel Sheet Parser Pipeline**
+<img width="719" height="858" alt="image" src="https://github.com/user-attachments/assets/9f6b2581-f141-4574-b821-843d0d91b2e3" />
+<img width="854" height="930" alt="image" src="https://github.com/user-attachments/assets/a4a7181b-5bfb-444f-8bc4-f49219d37507" />
+
 
 > **Visual Charts (GUI)**
 <img width="791" height="644" alt="image" src="https://github.com/user-attachments/assets/9586d29a-0680-4bc8-a49f-65cba73e8ab2" />
 <img width="708" height="285" alt="image" src="https://github.com/user-attachments/assets/5d4e4de2-fc18-4111-84a7-79ccddcb1cb3" />
 <img width="1385" height="686" alt="image" src="https://github.com/user-attachments/assets/17d12812-f2d8-48ab-abf6-7f268623380e" />
 <img width="853" height="759" alt="image" src="https://github.com/user-attachments/assets/a6bd9422-7eae-468a-b581-88876edded28" />
-
-
-> **Excel Sheet Parser Pipeline**
-<img width="719" height="858" alt="image" src="https://github.com/user-attachments/assets/9f6b2581-f141-4574-b821-843d0d91b2e3" />
-<img width="854" height="930" alt="image" src="https://github.com/user-attachments/assets/a4a7181b-5bfb-444f-8bc4-f49219d37507" />
-
 
 
 > **AI Chat Interface**
