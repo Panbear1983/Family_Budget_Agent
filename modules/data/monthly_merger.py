@@ -27,7 +27,7 @@ class MonthlyMerger(BaseModule):
         self.orchestrator = orchestrator
     
     def execute_from_dataframes(self, peter_df: pd.DataFrame, dolly_df: pd.DataFrame, 
-                                target_month: str, main_budget_path: str):
+                                target_month: str, main_budget_path: str, merge_mode: bool = False):
         """
         Execute merge from pre-parsed DataFrames (from FileParser)
         Returns: (success, merged_count, merged_dataframe)
@@ -36,16 +36,22 @@ class MonthlyMerger(BaseModule):
             print(f"\n🔍 Categorizing transactions...")
             
             # Categorize Peter's transactions
-            peter_categorized = self.categorizer.batch_categorize(
-                peter_df.to_dict('records'),
-                person='peter'
-            )
+            if len(peter_df) > 0:
+                peter_categorized = self.categorizer.batch_categorize(
+                    peter_df.to_dict('records'),
+                    person='peter'
+                )
+            else:
+                peter_categorized = []
             
             # Categorize Dolly's transactions
-            dolly_categorized = self.categorizer.batch_categorize(
-                dolly_df.to_dict('records'),
-                person='wife'
-            )
+            if len(dolly_df) > 0:
+                dolly_categorized = self.categorizer.batch_categorize(
+                    dolly_df.to_dict('records'),
+                    person='wife'
+                )
+            else:
+                dolly_categorized = []
             
             # Combine
             all_transactions = peter_categorized + dolly_categorized
@@ -260,12 +266,18 @@ class MonthlyMerger(BaseModule):
         
         print("\n" + "="*100)
     
-    def append_to_month_tab(self, df: pd.DataFrame, month_name: str, budget_file: str):
+    def append_to_month_tab(self, df: pd.DataFrame, month_name: str, budget_file: str, merge_mode: bool = False):
         """
         Write transactions to monthly tab with calendar-aligned row placement
         Only writes to restricted areas: rows 3-9, 11-17, 19-25, 27-33, 35-41, 43-49
         Only writes amounts to columns D-I (4-9)
         Assumes columns A & B (date & weekday) are pre-filled by auto-fill function
+        
+        Args:
+            df: DataFrame with transactions
+            month_name: Name of the month sheet
+            budget_file: Path to budget Excel file
+            merge_mode: If True, add to existing values; if False, overwrite existing values
         """
         from openpyxl import load_workbook
         
@@ -303,34 +315,62 @@ class MonthlyMerger(BaseModule):
             lambda x: x.groupby('main_category')['amount'].sum().to_dict()
         ).to_dict()
         
-        print(f"\n  📅 Writing {len(daily_totals)} days to {month_name} (calendar-aligned)")
+        mode_text = "merge mode (adding to existing)" if merge_mode else "overwrite mode (replacing existing)"
+        print(f"\n  📅 Writing {len(daily_totals)} days to {month_name} (calendar-aligned, {mode_text})")
+        
+        # Build date-to-row mapping by reading pre-written dates from column A
+        print("  🔍 Reading dates from Excel to find correct row positions...")
+        date_to_row = {}  # Maps date -> row number (1-based)
+        
+        # Scan rows 3-49 (the weekly blocks) to find dates in column A
+        for row_num in range(3, 50):  # rows 3-49 (1-based)
+            date_cell = ws.cell(row_num, 1).value  # Column A (1-based)
+            
+            if date_cell:
+                # Handle datetime objects and date strings
+                date_key = None
+                if isinstance(date_cell, datetime):
+                    date_key = date_cell.date()
+                elif isinstance(date_cell, str):
+                    try:
+                        # Try parsing date string (e.g., "2025-10-13")
+                        date_key = pd.to_datetime(date_cell).date()
+                    except:
+                        continue
+                else:
+                    # Try to convert other types
+                    try:
+                        date_key = pd.to_datetime(date_cell).date()
+                    except:
+                        continue
+                
+                if date_key:
+                    date_to_row[date_key] = row_num
+        
+        print(f"  ✅ Found {len(date_to_row)} dates in Excel sheet")
         
         # Process each date
         written_count = 0
         skipped_count = 0
         
         for date, categories in sorted(daily_totals.items()):
-            # Calculate calendar position
-            day_of_month = date.day
-            weekday = pd.Timestamp(date).weekday()  # 0=Monday, 6=Sunday
+            # Look up row number from Excel date mapping
+            row_num = date_to_row.get(date)
             
-            # Determine which week of the month (1-6)
-            week_num = ((day_of_month - 1) // 7)  # 0-based week number
-            
-            if week_num >= 6:
-                print(f"  ⚠️  Skipping {date} (beyond week 6)")
+            if row_num is None:
+                print(f"  ⚠️  Date {date} not found in Excel sheet (skipping)")
                 skipped_count += 1
                 continue
             
-            # Get the row range for this week
-            week_start, week_end = weekly_blocks[week_num]
+            # Validate row is within the weekly blocks (safety check)
+            in_valid_block = False
+            for week_start, week_end in weekly_blocks:
+                if week_start <= row_num <= week_end:
+                    in_valid_block = True
+                    break
             
-            # Calculate exact row: week_start + weekday offset
-            row_num = week_start + weekday
-            
-            # Validate row is within the weekly block
-            if row_num < week_start or row_num > week_end:
-                print(f"  ⚠️  Skipping {date} (row {row_num} outside valid range)")
+            if not in_valid_block:
+                print(f"  ⚠️  Date {date} at row {row_num} outside valid weekly blocks (skipping)")
                 skipped_count += 1
                 continue
             
@@ -339,17 +379,36 @@ class MonthlyMerger(BaseModule):
             for cat, col in col_map.items():
                 amount = categories.get(cat, 0)
                 if amount > 0:
-                    ws.cell(row_num, col, amount)
+                    if merge_mode:
+                        # Merge mode: add to existing value
+                        existing_value = ws.cell(row_num, col).value or 0
+                        new_total = existing_value + amount
+                        ws.cell(row_num, col, new_total)
+                    else:
+                        # Overwrite mode: replace existing value
+                        ws.cell(row_num, col, amount)
             
             written_count += 1
         
         # Save
         wb.save(budget_file)
         
+        # Force recalculation of formulas
+        print("  🔄 Forcing Excel formula recalculation...")
+        for sheet in wb.worksheets:
+            for row in sheet.iter_rows():
+                for cell in row:
+                    if cell.data_type == 'f':  # Formula cell
+                        cell.value = cell.value  # Force recalculation
+        
+        # Save again after recalculation
+        wb.save(budget_file)
+        
         if skipped_count > 0:
             print(f"  ⚠️  Skipped {skipped_count} date(s) outside 6-week range")
         
         print(f"  ✅ Updated {month_name} tab with {written_count} daily entries")
+        print(f"  🔄 Formulas recalculated automatically")
         print(f"  ☁️  OneDrive will auto-sync changes")
         
         return True

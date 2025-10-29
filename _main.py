@@ -169,7 +169,6 @@ def view_budget_workflow(budget_files):
 def merge_budget_workflow(merger, annual_mgr):
     """Merge monthly budget sheets from Peter and Dolly"""
     import os
-    import shutil
     import pandas as pd
     from datetime import datetime
     from core.module_registry import registry
@@ -180,15 +179,16 @@ def merge_budget_workflow(merger, annual_mgr):
     # Step 1: Get file paths
     print("請輸入文件路徑 (Enter file paths):\n")
     peter_file = input("Peter's file: ").strip()
-    dolly_file = input("Dolly's file: ").strip()
+    dolly_file = input("Dolly's file (or press Enter to skip): ").strip()
     
-    # Validate files exist
+    # Validate Peter's file exists
     if not os.path.exists(peter_file):
         print(f"\n❌ 文件不存在: {peter_file}")
         input("\n按 Enter 返回...")
         return
     
-    if not os.path.exists(dolly_file):
+    # Dolly's file is optional
+    if dolly_file and not os.path.exists(dolly_file):
         print(f"\n❌ 文件不存在: {dolly_file}")
         input("\n按 Enter 返回...")
         return
@@ -216,7 +216,26 @@ def merge_budget_workflow(merger, annual_mgr):
         input("\n按 Enter 返回...")
         return
     
-    # Step 3: Parse files using FileParser
+    # Step 3: Choose import mode
+    print("\n" + "="*100)
+    print("\n選擇導入模式 (Choose import mode):\n")
+    print("  1. 覆蓋模式 (Overwrite mode) - 替換所有數據 (Replace all data)")
+    print("  2. 合併模式 (Merge mode) - 添加到現有數據 (Add to existing data)")
+    print("\n" + "="*100)
+    mode_choice = input("\n選擇模式 (Choose mode 1-2): ").strip()
+    
+    if mode_choice == '1':
+        merge_mode = False
+        print("  ✅ 覆蓋模式 (Overwrite mode) - 將替換現有數據")
+    elif mode_choice == '2':
+        merge_mode = True
+        print("  ✅ 合併模式 (Merge mode) - 將添加到現有數據")
+    else:
+        print("\n❌ 無效選擇 (Invalid choice)")
+        input("\n按 Enter 返回...")
+        return
+    
+    # Step 4: Parse files using FileParser
     print(f"\n🔄 處理中... (Processing)...")
     
     try:
@@ -225,14 +244,19 @@ def merge_budget_workflow(merger, annual_mgr):
         # Parse Peter's file
         peter_data = parser.execute(peter_file, person='peter')
         
-        # Parse Dolly's file
-        dolly_data = parser.execute(dolly_file, person='wife')
+        # Parse Dolly's file only if provided
+        if dolly_file:
+            dolly_data = parser.execute(dolly_file, person='wife')
+            print(f"  ✅ Dolly's data: {len(dolly_data)} transactions")
+        else:
+            print("  ⏭️  Skipping Dolly's file")
+            dolly_data = pd.DataFrame()  # Empty DataFrame
         
-        # Step 4: Merge data (categorize, combine, deduplicate, show preview)
+        # Step 5: Merge data (categorize, combine, deduplicate, show preview)
         budget_file = annual_mgr.get_active_budget_file()
         
         success, count, merged_df = merger.execute_from_dataframes(
-            peter_data, dolly_data, target_month, budget_file
+            peter_data, dolly_data, target_month, budget_file, merge_mode
         )
         
         if not success:
@@ -249,24 +273,17 @@ def merge_budget_workflow(merger, annual_mgr):
             input("\n按 Enter 返回...")
             return
         
-        # Step 6: Create backup and write
+        # Step 6: Write to budget file
         print(f"\n🔄 Writing to {target_month}...")
         
-        backup_file = budget_file.replace('.xlsx', f'_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
-        shutil.copy2(budget_file, backup_file)
-        print(f"  💾 Backup: {os.path.basename(backup_file)}")
-        
         # Apply to budget file
-        write_success = merger.append_to_month_tab(merged_df, target_month, budget_file)
+        write_success = merger.append_to_month_tab(merged_df, target_month, budget_file, merge_mode)
         
         if write_success:
             print(f"\n✅ Success! {count} transactions written to {target_month}")
             print(f"☁️  OneDrive will auto-sync changes")
-            print(f"\n💡 Backup saved: {backup_file}")
         else:
-            print("\n❌ Write failed, restoring backup...")
-            shutil.copy2(backup_file, budget_file)
-            print("✅ Restored from backup")
+            print("\n❌ Write failed")
         
     except Exception as e:
         print(f"\n❌ 錯誤: {str(e)}")
@@ -670,12 +687,6 @@ def create_next_year_budget(annual_mgr):
         if overwrite != 'y':
             print("\n❌ 取消操作")
             return
-        
-        # Create backup before overwriting
-        import shutil
-        backup_file = next_year_file.replace('.xlsx', f'_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
-        shutil.copy2(next_year_file, backup_file)
-        print(f"  💾 已備份至: {os.path.basename(backup_file)}")
     
     # Check if template exists
     template_path = os.path.join(config.ONEDRIVE_PATH, annual_mgr.template_file)
