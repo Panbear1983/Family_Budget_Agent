@@ -73,27 +73,27 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
 
 ## 📸 Screenshots
 
-**Main Menu Interface**
+**Main Menu Interface**  
 <img width="735" height="604" alt="image" src="https://github.com/user-attachments/assets/601d8ff0-74f2-4e6c-9532-caf1331ac423" />
 
 
-**Budget View Terminal**
+**Budget View Terminal**  
 <img width="722" height="1051" alt="image" src="https://github.com/user-attachments/assets/8b05f46f-7330-4196-8663-c40c81981431" />
 
 
-**Excel Sheet Parser Pipeline**
+**Excel Sheet Parser Pipeline**  
 <img width="719" height="858" alt="image" src="https://github.com/user-attachments/assets/9f6b2581-f141-4574-b821-843d0d91b2e3" />
 <img width="854" height="930" alt="image" src="https://github.com/user-attachments/assets/a4a7181b-5bfb-444f-8bc4-f49219d37507" />
 
 
-**Visual Charts (GUI)**
+**Visual Charts (GUI)**  
 <img width="791" height="644" alt="image" src="https://github.com/user-attachments/assets/9586d29a-0680-4bc8-a49f-65cba73e8ab2" />
 <img width="708" height="285" alt="image" src="https://github.com/user-attachments/assets/5d4e4de2-fc18-4111-84a7-79ccddcb1cb3" />
 <img width="1385" height="686" alt="image" src="https://github.com/user-attachments/assets/17d12812-f2d8-48ab-abf6-7f268623380e" />
 <img width="853" height="759" alt="image" src="https://github.com/user-attachments/assets/a6bd9422-7eae-468a-b581-88876edded28" />
 
 
-**AI Chat Interface (Duel Language EN-CN)**
+**AI Chat Interface (Duel Language EN-CN)**  
 <img width="505" height="857" alt="image" src="https://github.com/user-attachments/assets/bdf091e1-e5fb-4ca5-9522-bb3ceaf6ac0e" />
 <img width="884" height="614" alt="image" src="https://github.com/user-attachments/assets/c36b92e2-38c3-4307-8c83-969760cb9c01" />
 <img width="683" height="196" alt="image" src="https://github.com/user-attachments/assets/6efd3837-58ec-45ee-a3a1-b74a8f625f80" />
