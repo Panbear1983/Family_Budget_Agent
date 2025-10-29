@@ -20,7 +20,7 @@ Managing family finances shouldn't be complicated. Yet for bilingual households 
 - Cloud budget apps expose sensitive financial data to third parties
 
 **The Solution:**
-This comprehensive agent uses dual local LLM intelligence to automatically process, categorize, analyze, and answer questions about your family budget—all running 100% on your machine.
+This comprehensive agent tool that parses monthly nudget sheets into an aggregated annual sheet, while uses dual local LLM intelligence to automatically process, categorize, analyze, and answer questions about your family budget—all running 100% on your machine.
 
 ---
 
@@ -28,8 +28,21 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
 
 ### What It Does Today (Production Ready ✅)
 
-1. **Intelligent Budget Processing**
+1. **Self-Parsing Budget Processing**
    - Automatically merges monthly CSV/Excel exports from multiple people
+```
+     2025年開銷表（NT）.xlsx
+┌─────────────────┐
+│ 類別 (Category)   │
+├─────────────────┤
+│ 交通費           │ ← Peter's Transportation + Dolly's 交通
+│ 伙食費           │ ← Peter's Food + Dolly's 吃吃喝喝
+│ 休閒/娛樂        │ ← Peter's Leisure + Dolly's 交際娛樂
+│ 家務            │ ← Peter's Home & Housing + Dolly's 5 categories
+│ 阿幫            │ ← Peter's Pet + Dolly's 幫比
+│ 其它            │ ← Peter's Others + Dolly's 分期付款
+└─────────────────┘
+```
    - LLM-powered categorization with 95%+ accuracy
    - Handles bilingual transaction descriptions seamlessly
    - Detects duplicates and outliers with explanations
@@ -73,33 +86,36 @@ This comprehensive agent uses dual local LLM intelligence to automatically proce
 
 ## 📸 Screenshots
 
-> **📷 SCREENSHOT PLACEMENT 1: Main Menu Interface**
-> 
-> *Insert screenshot showing the main menu with options:*
-> *- [1] 📊 查看 2025 年預算表 (View 2025 Budget)*
-> *- [2] 📥 更新每月預算 (Update Monthly Budget - Me + Wife)*
-> *- [3] 💬 預算分析對話 (Budget Chat & Insights)*
-> *- [4] ⚙️ 系統工具 (System Tools)*
+> **Main Menu Interface**
+<img width="735" height="604" alt="image" src="https://github.com/user-attachments/assets/601d8ff0-74f2-4e6c-9532-caf1331ac423" />
 
-> **📷 SCREENSHOT PLACEMENT 2: Budget View Terminal**
-> 
-> *Insert screenshot showing the terminal budget view with rich formatting, monthly breakdown, and category totals*
 
-> **📷 SCREENSHOT PLACEMENT 3: AI Chat Interface**
-> 
-> *Insert screenshot showing the AI chat interface with Chinese/English questions and responses, confidence scores, and visual charts*
+> **Budget View Terminal**
+<img width="722" height="1051" alt="image" src="https://github.com/user-attachments/assets/8b05f46f-7330-4196-8663-c40c81981431" />
 
-> **📷 SCREENSHOT PLACEMENT 4: Excel File Structure**
+
+> **Excel File Structure (Parser Feature)**
 > 
 > *Insert screenshot showing the OneDrive Excel file with monthly sheets (一月-十二月) and the annual summary sheet*
 
-> **📷 SCREENSHOT PLACEMENT 5: Visual Charts (GUI)**
-> 
-> *Insert screenshot showing matplotlib-generated charts for spending analysis, category breakdowns, and trend analysis*
+> **Visual Charts (GUI)**
+<img width="791" height="644" alt="image" src="https://github.com/user-attachments/assets/9586d29a-0680-4bc8-a49f-65cba73e8ab2" />
+<img width="708" height="285" alt="image" src="https://github.com/user-attachments/assets/5d4e4de2-fc18-4111-84a7-79ccddcb1cb3" />
+<img width="1385" height="686" alt="image" src="https://github.com/user-attachments/assets/17d12812-f2d8-48ab-abf6-7f268623380e" />
+<img width="853" height="759" alt="image" src="https://github.com/user-attachments/assets/a6bd9422-7eae-468a-b581-88876edded28" />
 
-> **📷 SCREENSHOT PLACEMENT 6: CSV Processing Pipeline**
-> 
-> *Insert screenshot showing the CSV upload and LLM categorization process with preview and confirmation*
+
+> **Excel Sheet Parser Pipeline**
+<img width="719" height="858" alt="image" src="https://github.com/user-attachments/assets/9f6b2581-f141-4574-b821-843d0d91b2e3" />
+<img width="854" height="930" alt="image" src="https://github.com/user-attachments/assets/a4a7181b-5bfb-444f-8bc4-f49219d37507" />
+
+
+
+> **AI Chat Interface**
+<img width="505" height="857" alt="image" src="https://github.com/user-attachments/assets/bdf091e1-e5fb-4ca5-9522-bb3ceaf6ac0e" />
+<img width="884" height="614" alt="image" src="https://github.com/user-attachments/assets/c36b92e2-38c3-4307-8c83-969760cb9c01" />
+<img width="683" height="196" alt="image" src="https://github.com/user-attachments/assets/6efd3837-58ec-45ee-a3a1-b74a8f625f80" />
+
 
 ---
 
