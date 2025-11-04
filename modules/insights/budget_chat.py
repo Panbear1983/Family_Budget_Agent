@@ -16,12 +16,18 @@ class BudgetChat(BaseModule):
     
     def _setup(self):
         """Initialize all sub-components"""
+        # Support both budget_file and data_loader parameters
         budget_file = self.config.get('budget_file')
-        if not budget_file:
-            raise ValueError("budget_file required in config")
+        data_loader = self.config.get('data_loader')
         
-        # Initialize components
-        self.data_loader = DataLoader(budget_file)
+        if data_loader:
+            # Use provided data loader (e.g., MultiYearDataLoader)
+            self.data_loader = data_loader
+        elif budget_file:
+            # Fallback to creating DataLoader from budget_file
+            self.data_loader = DataLoader(budget_file)
+        else:
+            raise ValueError("Either 'budget_file' or 'data_loader' required in config")
         
         # Visual components
         self.visual_report = VisualReportGenerator()
@@ -47,6 +53,7 @@ class BudgetChat(BaseModule):
             'chat': self.chat,
             # Visual tasks
             'show_monthly_table': self.show_monthly_table,
+            'show_full_monthly_view': self.show_full_monthly_view,
             'show_category_table': self.show_category_table,
             'show_comparison_table': self.show_comparison_table,
             'show_yearly_table': self.show_yearly_table,
@@ -64,8 +71,8 @@ class BudgetChat(BaseModule):
     
     def chat(self, question: str) -> str:
         """Main chat interface"""
-        # Load fresh data
-        all_data = self.data_loader.load_all_data()
+        # Load fresh data with rolling 12-month window (force reload to get latest Excel data)
+        all_data = self.data_loader.load_all_data(force_reload=True, use_rolling_window=True)
         stats = self.data_loader.get_summary_stats()
         
         # Build enriched data for LLM
@@ -89,14 +96,78 @@ class BudgetChat(BaseModule):
         """Show monthly transactions table"""
         # Extract month name from format like "2025-九月" -> "九月"
         month_name = month.split('-')[1] if '-' in month else month
-        df = self.data_loader.load_month(month_name)
+        # Try to load with full key first (for MultiYearDataLoader), then fallback to month name
+        df = None
+        if hasattr(self.data_loader, 'load_all_data'):
+            all_data = self.data_loader.load_all_data()
+            # Try full key first
+            if month in all_data:
+                df = all_data[month]
+            # Fallback to month name
+            elif month_name in all_data:
+                df = all_data[month_name]
+        if df is None:
+            df = self.data_loader.load_month(month_name)
         self.visual_report.show_monthly_table(month, df)
+    
+    def show_full_monthly_view(self, month: str) -> None:
+        """Show full Excel monthly view (like View Budget module)"""
+        # Extract month name from format like "2025-九月" -> "九月"
+        month_name = month.split('-')[1] if '-' in month else month
+        
+        # Get the file path from the data loader
+        file_path = None
+        if hasattr(self.data_loader, 'budget_files') and self.data_loader.budget_files:
+            # MultiYearDataLoader - find the file that contains this month
+            # Extract year from month key if available (e.g., "2025-九月" -> 2025)
+            if '-' in month:
+                year_str = month.split('-')[0]
+                try:
+                    year = int(year_str)
+                    # Find the file that matches this year
+                    for file in self.data_loader.budget_files:
+                        import os
+                        filename = os.path.basename(file)
+                        if filename.startswith(str(year)):
+                            file_path = file
+                            break
+                except ValueError:
+                    pass
+            
+            # If not found by year, use the first file
+            if not file_path and self.data_loader.budget_files:
+                file_path = self.data_loader.budget_files[0]
+        elif hasattr(self.data_loader, 'budget_file'):
+            # Single DataLoader
+            file_path = self.data_loader.budget_file
+        else:
+            # Fallback to config
+            import config
+            file_path = config.BUDGET_PATH
+        
+        # Display the full monthly sheet view
+        if file_path:
+            try:
+                from utils.view_sheets import display_monthly_sheet_from_file
+                display_monthly_sheet_from_file(file_path, month_name)
+            except Exception as e:
+                print(f"❌ 無法顯示完整視圖: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to simple table view
+                self.show_monthly_table(month)
+        else:
+            print("❌ 無法找到預算檔案")
+            # Fallback to simple table view
+            self.show_monthly_table(month)
     
     def show_category_table(self, month: str) -> None:
         """Show category breakdown table"""
         # Extract month name from format like "2025-九月" -> "九月"
         month_name = month.split('-')[1] if '-' in month else month
-        insights = self.insight_generator.generate_monthly_insights(month_name)
+        # For MultiYearDataLoader, use the full key if available
+        month_key = month if '-' in month else month_name
+        insights = self.insight_generator.generate_monthly_insights(month_key)
         self.visual_report.show_category_breakdown_table(insights)
     
     def show_comparison_table(self, month1: str, month2: str) -> str:
@@ -106,9 +177,27 @@ class BudgetChat(BaseModule):
         month2_name = month2.split('-')[1] if '-' in month2 else month2
         
         try:
-            # Load data directly using the same approach as function_registry.py
-            df1 = self.data_loader.load_month(month1_name)
-            df2 = self.data_loader.load_month(month2_name)
+            # Try to load with full key first (for MultiYearDataLoader), then fallback to month name
+            df1 = None
+            df2 = None
+            
+            if hasattr(self.data_loader, 'load_all_data'):
+                all_data = self.data_loader.load_all_data()
+                # Try full key first
+                if month1 in all_data:
+                    df1 = all_data[month1]
+                elif month1_name in all_data:
+                    df1 = all_data[month1_name]
+                if month2 in all_data:
+                    df2 = all_data[month2]
+                elif month2_name in all_data:
+                    df2 = all_data[month2_name]
+            
+            # Fallback to load_month if not found
+            if df1 is None:
+                df1 = self.data_loader.load_month(month1_name)
+            if df2 is None:
+                df2 = self.data_loader.load_month(month2_name)
             
             # Check if data was loaded successfully
             if df1 is None or df2 is None:
@@ -179,10 +268,8 @@ class BudgetChat(BaseModule):
             return self.terminal_graph.plot_trend_line(trend_result['trend_data'], category)
         elif chart_type == 'comparison':
             month1, month2 = args[0], args[1]
-            # Extract month names from keys (e.g., "2025-二月" -> "二月")
-            month1_name = month1.split('-')[1] if '-' in month1 else month1
-            month2_name = month2.split('-')[1] if '-' in month2 else month2
-            comparison = self.insight_generator.generate_comparison(month1_name, month2_name)
+            # Pass full month keys to generate_comparison (handles both "2025-二月" and "二月" formats)
+            comparison = self.insight_generator.generate_comparison(month1, month2)
             return self.terminal_graph.plot_comparison_bars(comparison)
         elif chart_type == 'stacked':
             summary = self.insight_generator.generate_yearly_summary()
@@ -207,10 +294,8 @@ class BudgetChat(BaseModule):
             return "✅ GUI monthly bar chart displayed"
         elif chart_type == 'comparison':
             month1, month2 = args[0], args[1]
-            # Extract month names from keys (e.g., "2025-二月" -> "二月")
-            month1_name = month1.split('-')[1] if '-' in month1 else month1
-            month2_name = month2.split('-')[1] if '-' in month2 else month2
-            comparison = self.insight_generator.generate_comparison(month1_name, month2_name)
+            # Pass full month keys to generate_comparison (handles both "2025-二月" and "二月" formats)
+            comparison = self.insight_generator.generate_comparison(month1, month2)
             self.gui_graph.plot_comparison_grouped_bars(comparison)
             return "✅ GUI comparison chart displayed"
         elif chart_type == 'trend_line':

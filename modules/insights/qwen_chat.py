@@ -57,9 +57,13 @@ class QwenChat:
     def _execute_function_chain(self, question: str, classification: Dict[str, Any]) -> str:
         """Execute the most appropriate function based on classification"""
         
-        # Get data
-        all_data = self.data_loader.load_all_data()
-        print(f"📊 Loaded {len(all_data)} months of data")
+        # Get data with rolling 12-month window
+        if hasattr(self.data_loader, 'load_all_data'):
+            # Use rolling window for MultiYearDataLoader
+            all_data = self.data_loader.load_all_data(use_rolling_window=True)
+        else:
+            all_data = self.data_loader.load_all_data()
+        print(f"📊 Loaded {len(all_data)} months of data (rolling 12-month window)")
         
         # Get entities
         entities = classification.get('entities', {})

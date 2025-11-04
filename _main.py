@@ -326,6 +326,7 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
     # Load simplified Qwen-based chat system
     enhanced_mode = False
     qwen_chat = None
+    multi_data_loader = None  # Initialize to None
     
     try:
         from core.qwen_orchestrator import QwenOrchestrator
@@ -360,16 +361,24 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
         import traceback
         traceback.print_exc()
         enhanced_mode = False
+        # Still try to create multi_data_loader even if Qwen Chat fails
+        try:
+            from modules.insights.multi_year_data_loader import MultiYearDataLoader
+            multi_data_loader = MultiYearDataLoader(budget_files)
+        except Exception:
+            multi_data_loader = None
     
     # Get available data (filter to 2025+ only)
-    if enhanced_mode:
-        all_months = list(multi_data_loader.load_all_data().keys())
+    if multi_data_loader:
+        # Force reload to ensure fresh data (including October, November, December)
+        # This ensures the list is always up-to-date with the Excel file
+        all_months = list(multi_data_loader.load_all_data(force_reload=True).keys())
         # Filter: Only show months from 2025 onwards
         available_months = [m for m in all_months if not m.startswith('2024')]
         stats = multi_data_loader.get_summary_stats()
         categories = list(stats['by_category'].keys()) if stats else ['伙食费', '交通费', '休闲/娱乐']
     else:
-        available_months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月']
+        available_months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
         categories = []
     
     console = Console()
@@ -390,15 +399,17 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
         
         elif mode == '1':
             # Fast AI Chat mode (using Phase1ChatbotRouter - no Qwen LLM)
-            fast_ai_chat_mode(available_months, categories)
+            # Pass multi_data_loader if available, otherwise None
+            fast_ai_chat_mode(available_months, categories, multi_data_loader)
         
         elif mode == '2':
             # Fast Visual Analysis mode (using Phase1ChatbotRouter)
-            fast_visual_analysis_mode(available_months, categories)
+            # Pass multi_data_loader if available, otherwise None
+            fast_visual_analysis_mode(available_months, categories, multi_data_loader)
     
     # Return directly to main menu (no extra Enter needed)
 
-def fast_ai_chat_mode(available_months, categories):
+def fast_ai_chat_mode(available_months, categories, data_loader=None):
     """Fast AI Chat mode using existing BudgetChat system"""
     print("\n🤖 ChatBot Navigator Q&A (Fast AI Chat Mode)")
     print("─" * 100)
@@ -417,15 +428,25 @@ def fast_ai_chat_mode(available_months, categories):
         from modules.insights.budget_chat import BudgetChat
         from core.orchestrator import LLMOrchestrator
         
-        import config
-        budget_file = config.BUDGET_PATH
-        
-        if os.path.exists(budget_file):
-            # Initialize budget chat system (silently)
-            budget_chat = BudgetChat({'budget_file': budget_file})
+        # Use provided data_loader if available, otherwise fallback to config
+        if data_loader:
+            # Use the multi-year data loader that was already created
+            budget_chat = BudgetChat({'data_loader': data_loader})
             budget_chat.initialize()
+        else:
+            # Fallback to single-file data loader
+            import config
+            budget_file = config.BUDGET_PATH
             
-            # Set up orchestrator for AI chat
+            if os.path.exists(budget_file):
+                # Initialize budget chat system (silently)
+                budget_chat = BudgetChat({'budget_file': budget_file})
+                budget_chat.initialize()
+            else:
+                print("⚠️  預算檔案不存在，使用預設路徑")
+        
+        # Set up orchestrator for AI chat
+        if budget_chat:
             try:
                 orchestrator = LLMOrchestrator()
                 orchestrator.initialize()
@@ -434,13 +455,10 @@ def fast_ai_chat_mode(available_months, categories):
                 # If orchestrator fails, continue without it
                 pass
             
-            # Silent success - no loading messages
-        else:
-            # Silent failure - no error messages
-            pass
     except Exception as e:
-        # Silent failure - no error messages
-        pass
+        print(f"⚠️  初始化預算聊天系統時發生錯誤: {e}")
+        import traceback
+        traceback.print_exc()
     
     while True:
         # Get user input
@@ -536,7 +554,7 @@ def show_fast_ai_chat_help():
     print("   • 'help' - 顯示此幫助")
     print("   • 'exit' - 返回主選單")
 
-def fast_visual_analysis_mode(available_months, categories):
+def fast_visual_analysis_mode(available_months, categories, data_loader=None):
     """Fast visual analysis mode using existing menu system"""
     print("\n📊 快速視覺化分析 (Fast Visual Analysis)")
     print("─" * 100)
@@ -545,33 +563,43 @@ def fast_visual_analysis_mode(available_months, categories):
     print("─" * 100)
     
     # Initialize data components
-    data_loader = None
     budget_chat = None
     
     try:
-        # Try to initialize data components (silently)
-        from modules.insights.data_loader import DataLoader
+        # Try to initialize data components
         from modules.insights.budget_chat import BudgetChat
         from modules.insights.chat_menus import visual_analysis_menu
         
-        import config
-        budget_file = config.BUDGET_PATH
-        
-        if os.path.exists(budget_file):
-            # Initialize data loader (silently)
-            data_loader = DataLoader(budget_file)
-            
-            # Initialize budget chat system (silently)
-            budget_chat = BudgetChat({'budget_file': budget_file})
+        # Use provided data_loader if available, otherwise fallback to config
+        if data_loader:
+            # Use the multi-year data loader that was already created
+            budget_chat = BudgetChat({'data_loader': data_loader})
             budget_chat.initialize()
+        else:
+            # Fallback to single-file data loader
+            from modules.insights.data_loader import DataLoader
+            import config
+            budget_file = config.BUDGET_PATH
             
-            # Use the existing visual analysis menu
+            if os.path.exists(budget_file):
+                # Initialize budget chat system
+                budget_chat = BudgetChat({'budget_file': budget_file})
+                budget_chat.initialize()
+            else:
+                print("❌ 預算檔案不存在")
+                input("\n按 Enter 返回...")
+                return
+        
+        # Use the existing visual analysis menu
+        if budget_chat:
             visual_analysis_menu(budget_chat, available_months, categories)
         else:
-            print("❌ 預算檔案不存在")
+            print("❌ 無法初始化預算聊天系統")
             input("\n按 Enter 返回...")
     except Exception as e:
         print(f"❌ 初始化失敗: {e}")
+        import traceback
+        traceback.print_exc()
         input("\n按 Enter 返回...")
 
 def show_fast_visual_help():

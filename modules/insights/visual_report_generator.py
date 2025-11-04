@@ -69,31 +69,42 @@ class VisualReportGenerator:
         table.add_column("占比", justify="right", style="magenta", width=12)
         table.add_column("視覺化", width=40)
         
-        total = insights['total_spending']
+        total = insights.get('total_spending', 0)
+        # Handle both 'categories' and 'category_breakdown' keys for compatibility
+        categories_dict = insights.get('categories', {}) or insights.get('category_breakdown', {})
         categories = sorted(
-            insights['categories'].items(),
+            categories_dict.items(),
             key=lambda x: x[1],
             reverse=True
-        )
+        ) if categories_dict else []
         
-        for cat, amount in categories:
-            percentage = (amount / total * 100) if total > 0 else 0
-            bar_length = int(percentage / 3)  # Scale to fit
-            bar = "█" * bar_length
-            
+        # If no categories, show a message
+        if not categories:
             table.add_row(
-                cat,
-                f"NT$ {amount:,.0f}",
-                f"{percentage:.1f}%",
-                f"[green]{bar}[/green]"
+                "[dim]無數據[/dim]",
+                "[dim]NT$ 0[/dim]",
+                "[dim]0%[/dim]",
+                "[dim]（此月份尚未有支出記錄）[/dim]"
             )
+        else:
+            for cat, amount in categories:
+                percentage = (amount / total * 100) if total > 0 else 0
+                bar_length = int(percentage / 3)  # Scale to fit
+                bar = "█" * bar_length
+                
+                table.add_row(
+                    cat,
+                    f"NT$ {amount:,.0f}",
+                    f"{percentage:.1f}%",
+                    f"[green]{bar}[/green]"
+                )
         
         # Add total row
         table.add_section()
         table.add_row(
             "[bold]總計[/bold]",
             f"[bold]NT$ {total:,.0f}[/bold]",
-            "[bold]100%[/bold]",
+            "[bold]100%[/bold]" if total > 0 else "[dim]0%[/dim]",
             ""
         )
         

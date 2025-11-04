@@ -18,7 +18,22 @@ class TrendAnalyzer:
             trend_data = []
             
             for month in available_months:
-                df = self.data_loader.load_month(month)
+                # Handle MultiYearDataLoader format (e.g., "2025-九月")
+                df = None
+                if hasattr(self.data_loader, 'load_all_data'):
+                    all_data = self.data_loader.load_all_data()
+                    # Try full key first
+                    if month in all_data:
+                        df = all_data[month]
+                    # Try extracting month name if format is "2025-九月"
+                    elif '-' in month:
+                        month_name = month.split('-')[1]
+                        if month_name in all_data:
+                            df = all_data[month_name]
+                # Fallback to load_month if available
+                if df is None:
+                    month_name = month.split('-')[1] if '-' in month else month
+                    df = self.data_loader.load_month(month_name)
                 if df is not None and len(df) > 0:
                     category_df = df[df['category'] == category]
                     amount = category_df['amount'].sum()

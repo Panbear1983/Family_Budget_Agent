@@ -116,6 +116,7 @@ def visual_analysis_menu(chat_module, available_months: List[str], categories: L
         console.print("   [[green]2[/green]] ⚖️  雙月對比 (Compare Months) - Tables + Charts")
         console.print("   [[green]3[/green]] 📊 年度總覽 (Yearly Summary) - Tables + Charts")
         console.print("   [[green]4[/green]] 📈 趨勢分析 (Trend Analysis) - Tables + Charts")
+        console.print("   [[green]5[/green]] 📋 完整月報表 (Full Monthly View) - Excel Sheet View")
         console.print("   [[green]x[/green]] 返回 (Back)")
         
         print("─" * 100)
@@ -144,6 +145,29 @@ def visual_analysis_menu(chat_module, available_months: List[str], categories: L
             print("\n✅ 交易明細已顯示")
             
             # Go directly back to month selection menu (no Enter continue)
+            continue
+        
+        elif choice == '5':
+            # Full monthly view (Excel sheet view)
+            try:
+                month = select_month(available_months)
+            except ValueError as e:
+                print(f"\n❌ {e}")
+                input("\n按 Enter 繼續...")
+                continue
+            
+            print(f"\n📋 {month} 完整月報表...")
+            
+            # Show full Excel sheet view
+            try:
+                chat_module.execute('show_full_monthly_view', month)
+                print("\n✅ 完整月報表已顯示")
+            except Exception as e:
+                print(f"❌ 顯示完整月報表失敗: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            input("\n按 Enter 繼續...")
             continue
         
         elif choice == '2':
