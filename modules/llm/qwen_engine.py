@@ -116,15 +116,25 @@ Return as structured data."""
     
     def query(self, question: str, data: dict) -> str:
         """
-        Answer simple data queries
+        Answer simple data queries - Brief responses with data citation
         """
-        prompt = f"""Answer this question using the budget data.
+        # Extract labeled data for hallucination prevention
+        data_summary = str(data.get('stats', {}))
+        available_months = data.get('available_months', [])
+        data_source = data.get('data_source', 'Annual Excel Budget File')
+        
+        prompt = f"""Answer this question using ONLY the budget data from the Excel file.
 
 Question: {question}
 
-Data summary: {str(data)[:500]}
+**Excel Budget Data (from {data_source}):**
+{data_summary[:500]}
 
-Provide a concise, factual answer with numbers."""
+**Available Months:** {', '.join(available_months) if available_months else 'None'}
+
+**CRITICAL:** Only use numbers and facts from the data above. If the data doesn't contain the answer, say so clearly.
+
+Provide a concise, factual answer with specific numbers from the Excel file."""
         
         return self.call_model(prompt)
     

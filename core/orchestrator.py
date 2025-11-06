@@ -90,7 +90,14 @@ class LLMOrchestrator:
         """
         Answer user questions with smart routing
         """
-        # Analyze question type
+        # Check if topic filtering is enabled and validate budget-related topic
+        topic_filter = config.AI_CHAT_CONFIG.get('topic_filter', {})
+        if topic_filter.get('enabled', False):
+            if not self._is_budget_related(question):
+                return topic_filter.get('decline_message', 
+                    "Hey, I'm your budget consultant, not your everything consultant. Stick to money, spending, and budget questions, okay? 😏")
+        
+        # Analyze question type (preserves keyword routing for data access)
         question_type = self._classify_question(question)
         
         if question_type == 'simple_query':
@@ -110,13 +117,41 @@ class LLMOrchestrator:
         # Default: Use GPT-OSS
         return self.gpt_oss.execute('answer', question, data)
     
-    def _classify_question(self, question: str) -> str:
+    def _is_budget_related(self, question: str) -> bool:
         """
-        Classify question type for routing
+        Check if question is budget-related
+        Uses keyword matching to identify budget topics
         """
         question_lower = question.lower()
         
-        # Simple queries (Qwen)
+        # Budget-related keywords (preserves same keyword structure for data access)
+        budget_keywords = [
+            # English keywords
+            'budget', 'spending', 'expense', 'expenditure', 'cost', 'money', 'spent', 'spend',
+            'category', 'categories', 'month', 'monthly', 'year', 'yearly', 'annual',
+            'food', 'transportation', 'entertainment', 'household', 'other',
+            'total', 'sum', 'amount', 'payment', 'transaction', 'purchase',
+            'trend', 'pattern', 'analysis', 'comparison', 'compare',
+            'saving', 'save', 'financial', 'finance', 'costs', 'price',
+            # Chinese keywords (preserves Chinese month/category access)
+            '預算', '支出', '開銷', '花費', '金錢', '費用', '花錢', '花',
+            '分類', '月份', '年度', '月度', '月度', '月', '年',
+            '交通费', '伙食费', '休闲/娱乐', '休闲', '娱乐', '家务', '其它',
+            '總', '總額', '總計', '合計', '金額', '數額',
+            '趨勢', '比較', '對比', '分析', '統計',
+            '節省', '省', '財務', '金融'
+        ]
+        
+        return any(kw in question_lower for kw in budget_keywords)
+    
+    def _classify_question(self, question: str) -> str:
+        """
+        Classify question type for routing
+        Preserves keyword-based routing for data access
+        """
+        question_lower = question.lower()
+        
+        # Simple queries (Qwen) - preserves keyword structure
         simple_keywords = ['how much', '多少', 'total', '總', 'sum', 'count']
         if any(kw in question_lower for kw in simple_keywords):
             return 'simple_query'

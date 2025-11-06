@@ -16,7 +16,7 @@ class DataLoader:
         self.last_loaded = None
         self.ttl = 1800  # Cache for 30 minutes
     
-    def load_all_data(self, force_reload: bool = False, silent: bool = False) -> Dict[str, pd.DataFrame]:
+    def load_all_data(self, force_reload: bool = False, silent: bool = False, use_rolling_window: Optional[bool] = None) -> Dict[str, pd.DataFrame]:
         """Load all months from budget file"""
         
         # Check cache

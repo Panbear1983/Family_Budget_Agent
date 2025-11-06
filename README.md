@@ -48,9 +48,12 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
    - Auto-fill dates, edit expenses by category, all with change previews
 
 4. **AI-Powered Intelligence**
-   - **Qwen3:8b** handles all AI tasks (parsing, categorization, reasoning)
+   - **Qwen3:8b** handles structured tasks (parsing, categorization, data extraction)
+   - **GPT-OSS:20b** handles complex reasoning and budget advice (optional dual pipeline)
+   - **Personality System**: Humorous, casual budget advisor with bilingual support
+   - **Topic Filtering**: Automatically declines non-budget questions
+   - **Data Citation**: Always references specific Excel data to prevent hallucination
    - Natural language routing to existing functions
-   - Simplified single-model approach for reliability
    - Function-based responses for consistent results
 
 5. **Privacy-First Architecture**
@@ -68,6 +71,7 @@ This comprehensive agent tool that parses monthly nudget sheets into an aggregat
 | Complex trend analysis with charts | 5-15 seconds | Data-driven insights |
 | Detect duplicate transactions | 2-5 seconds | Dictionary + fuzzy matching |
 | Bilingual transaction handling | Real-time | Seamless |
+| Data cache TTL | 30 minutes | Prevents stale data |
 
 ---
 
@@ -411,6 +415,34 @@ REASONING_LLM = "qwen3:8b"       # Use Qwen for both structured and reasoning ta
 
 Restart → New models active!
 
+### AI Chat Configuration
+
+Edit `config.py` to customize AI personality and behavior:
+
+```python
+AI_CHAT_CONFIG = {
+    "personality": {
+        "enabled": True,            # Enable personality mode
+        "style": "humorous_casual",  # "formal" | "humorous_casual" | "professional"
+        "allow_swear_words": True,    # Allow occasional swear words
+        "swear_frequency": "sparing", # "never" | "sparing" | "moderate" | "frequent"
+        "use_humor": True,           # Use humor in responses
+        "bilingual": True,           # Use both Chinese and English naturally
+        "short_paragraphs": True,    # Keep spending feedback short (2-3 sentences)
+        "data_citation": True        # Always cite specific months/categories from Excel
+    },
+    "topic_filter": {
+        "enabled": True,             # Only answer budget-related questions
+        "strict_mode": True,         # Strictly enforce budget-only responses
+        "decline_message": "Hey, I'm your budget consultant, not your everything consultant. Stick to money, spending, and budget questions, okay? 😏"
+    },
+    "use_dual_pipeline": True,       # Use Qwen→GPT-OSS pipeline for complex questions
+    "dual_pipeline_mode": "smart"    # "always" | "smart" | "never"
+}
+```
+
+Restart → New personality active!
+
 ### OneDrive Path Configuration
 
 The system uses **year-based dynamic file naming** that updates automatically:
@@ -633,6 +665,7 @@ Choose month: 7 (July)
 | Complex analysis | 5-15 seconds |
 | Module reload | Instant |
 | Memory usage | ~5.2GB (Qwen only) |
+| Data cache TTL | 30 minutes |
 
 ---
 
@@ -644,6 +677,10 @@ Choose month: 7 (July)
 - ✅ Annual file management
 - ✅ OneDrive sync integration
 - ✅ AI Chat (function-based routing)
+- ✅ AI Chat Personality System (humorous, casual style)
+- ✅ Topic Filtering (budget-only questions)
+- ✅ Data Citation (prevents hallucination)
+- ✅ Dual Pipeline (Qwen→GPT-OSS for complex questions)
 - ✅ Visual reports (terminal + GUI)
 - ✅ Bilingual support (中文/English)
 

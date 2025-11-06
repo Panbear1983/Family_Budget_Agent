@@ -75,11 +75,27 @@ class BudgetChat(BaseModule):
         all_data = self.data_loader.load_all_data(force_reload=True, use_rolling_window=True)
         stats = self.data_loader.get_summary_stats()
         
-        # Build enriched data for LLM
+        # Build enriched data for LLM with proper labeling to prevent hallucination
+        # Preserves keyword structure for data access (months, categories, etc.)
         enriched_data = {
-            'stats': stats,
-            'available_months': list(all_data.keys())
+            'stats': stats,  # Statistics from Excel file
+            'available_months': list(all_data.keys()),  # List of months with data (format: "2025-七月", "2025-八月", etc.)
+            'data_source': 'Annual Excel Budget File',  # Explicit source label
+            'data_summary': f"Data from {len(all_data)} months in Excel file",  # Summary label
+            # Add category labels for easy reference (preserves Chinese category names)
+            'categories': ['交通费', '伙食费', '休闲/娱乐', '家务', '其它'] if stats else [],
+            # Add month names for easy reference (preserves Chinese month names)
+            'month_names': ['一月', '二月', '三月', '四月', '五月', '六月', 
+                           '七月', '八月', '九月', '十月', '十一月', '十二月']
         }
+        
+        # Add category breakdown if available in stats
+        if stats and 'by_category' in stats:
+            enriched_data['by_category'] = stats['by_category']  # Spending breakdown by category
+        
+        # Add monthly totals if available
+        if stats and 'monthly_totals' in stats:
+            enriched_data['monthly_totals'] = stats['monthly_totals']  # Total spending per month
         
         # Use orchestrator to answer
         if self.orchestrator:

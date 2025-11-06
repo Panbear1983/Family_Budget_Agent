@@ -128,9 +128,26 @@ AI_CHAT_CONFIG = {
     "show_uncertainty_warning": True,  # Show warning messages for uncertain answers
     "min_confidence_for_action": 0.7,   # Minimum confidence for action recommendations
     "use_dual_pipeline": True,      # Use Qwen→GPT-OSS pipeline for all complex questions (best quality)
-    "dual_pipeline_mode": "smart"   # "always" | "smart" | "never" 
+    "dual_pipeline_mode": "smart",   # "always" | "smart" | "never" 
                                     # smart = use for insight/advice/optimize only
                                     # always = use for all questions (slower but more insightful)
+    # Budget Advisor Personality Configuration
+    "personality": {
+        "enabled": True,            # Enable personality mode
+        "style": "humorous_casual",  # "formal" | "humorous_casual" | "professional"
+        "allow_swear_words": True,   # Allow occasional swear words (fuck, shit, damn, etc.)
+        "swear_frequency": "sparing", # "never" | "sparing" | "moderate" | "frequent"
+        "use_humor": True,           # Use humor in responses
+        "bilingual": True,           # Use both Chinese and English naturally
+        "short_paragraphs": True,    # Keep spending feedback short (2-3 sentences)
+        "data_citation": True        # Always cite specific months/categories from Excel
+    },
+    # Budget Topic Filtering
+    "topic_filter": {
+        "enabled": True,             # Only answer budget-related questions
+        "strict_mode": True,         # Strictly enforce budget-only responses
+        "decline_message": "Hey, I'm your budget consultant, not your everything consultant. Stick to money, spending, and budget questions, okay? 😏"
+    }
 }
 
 # ═══════════════════════════════════════════════════════════
