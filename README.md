@@ -795,7 +795,7 @@ Personal project - feel free to adapt for your own use.
 
 ---
 
-**Version:** 1.2  
+**Version:** 2.0.1  
 **Architecture:** Modular Plugin System with Dual-LLM AI  
 **LLM:** Qwen3:8b (structured tasks) + GPT-OSS:20b (complex reasoning)  
 **Status:** Production Ready ✅  
@@ -804,7 +804,7 @@ Personal project - feel free to adapt for your own use.
 
 ## 📋 Version History
 
-### V1.2 (January 2026) - Dual Pipeline Enhancement
+### V2.0.1 (January 2026) - Dual Pipeline Enhancement
 
 **Major Changes:**
 - **Dual LLM Pipeline**: Added GPT-OSS:20b for complex reasoning and budget advice alongside Qwen3:8b for structured tasks
