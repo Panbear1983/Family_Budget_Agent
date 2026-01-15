@@ -3,6 +3,7 @@ Budget Chat - Main chat module integrating all insights components
 """
 
 from typing import Dict, Any
+import re
 from core.base_module import BaseModule
 from .data_loader import DataLoader
 from .visual_report_generator import VisualReportGenerator
@@ -10,6 +11,7 @@ from .terminal_graphs import TerminalGraphGenerator
 from .gui_graphs import GUIGraphGenerator
 from .insight_generator import InsightGenerator
 from .trend_analyzer import TrendAnalyzer
+import config
 
 class BudgetChat(BaseModule):
     """Main Budget Chat module - integrates all insight components"""
@@ -69,11 +71,262 @@ class BudgetChat(BaseModule):
         
         return handler(*args, **kwargs)
     
+    def _detect_response_language(self, question: str) -> str:
+        """Detect the desired response language (English or Traditional Chinese)."""
+        if re.search(r'[\u4e00-\u9fff]', question):
+            return 'zh-traditional'
+        return 'en'
+    
+    def _extract_month_mentions(self, question: str, month_order: list) -> list:
+        """Extract month keys referenced in the user's question."""
+        if not month_order:
+            return []
+        
+        chinese_months = ['一月', '二月', '三月', '四月', '五月', '六月',
+                          '七月', '八月', '九月', '十月', '十一月', '十二月']
+        english_months = ['january', 'february', 'march', 'april', 'may', 'june',
+                          'july', 'august', 'september', 'october', 'november', 'december']
+        
+        mentions = []
+        lower_question = question.lower()
+        
+        for key in month_order:
+            month_name = key.split('-', 1)[1] if '-' in key else key
+            # Direct Chinese month name match
+            if month_name in question:
+                mentions.append(key)
+                continue
+            # Numeric month reference in Chinese (e.g., 8月)
+            if month_name in chinese_months:
+                idx = chinese_months.index(month_name) + 1
+                if f'{idx}月' in question or f'{idx} 月' in question:
+                    mentions.append(key)
+                    continue
+            # English month references
+            for en_idx, en_month in enumerate(english_months):
+                if en_month in lower_question and en_idx < len(chinese_months):
+                    if month_name == chinese_months[en_idx]:
+                        mentions.append(key)
+                        break
+        # Deduplicate while preserving order
+        seen = set()
+        result = []
+        for key in mentions:
+            if key not in seen:
+                seen.add(key)
+                result.append(key)
+        return result
+    
+    def _format_currency(self, amount: float) -> str:
+        try:
+            return f"{amount:,.0f}"
+        except Exception:
+            return str(amount)
+    
+    def _format_month_summary(self, key: str, data: dict, language: str) -> str:
+        """Create a short textual summary for a single month."""
+        month_name = key.split('-', 1)[1] if '-' in key else key
+        total = float(data.get('total', 0.0))
+        transaction_count = data.get('transaction_count', 0)
+        categories = data.get('categories', {}) or {}
+        has_data = data.get('has_data', False)
+        top_categories = sorted(categories.items(), key=lambda item: item[1], reverse=True)[:3]
+        
+        if language == 'zh-traditional':
+            if not has_data:
+                return f"{month_name}尚未紀錄任何交易。"
+            parts = [f"{month_name}總支出 NT${self._format_currency(total)}，共 {transaction_count} 筆交易。"]
+            if top_categories:
+                cat_parts = [f"{cat} NT${self._format_currency(amount)}" for cat, amount in top_categories]
+                parts.append("主要支出類別：" + "、".join(cat_parts) + "。")
+            else:
+                parts.append("目前沒有分類明細。")
+            return " ".join(parts)
+        else:
+            if not has_data:
+                return f"{month_name} has no recorded transactions yet."
+            parts = [f"{month_name}: total spend NT${self._format_currency(total)} across {transaction_count} transactions."]
+            if top_categories:
+                cat_parts = [f"{cat} NT${self._format_currency(amount)}" for cat, amount in top_categories]
+                parts.append("Top categories: " + ", ".join(cat_parts) + ".")
+            else:
+                parts.append("Category breakdown is currently unavailable.")
+            return " ".join(parts)
+    
+    def _format_comparison_summary(self, comparison: dict, language: str) -> str:
+        """Create a short textual summary comparing two months."""
+        if not comparison:
+            return ""
+        month1 = comparison.get('month1', '')
+        month2 = comparison.get('month2', '')
+        total1 = comparison.get('total1', 0)
+        total2 = comparison.get('total2', 0)
+        change = comparison.get('total_change', 0)
+        change_str = self._format_currency(change)
+        total1_str = self._format_currency(total1)
+        total2_str = self._format_currency(total2)
+        
+        if language == 'zh-traditional':
+            direction = "增加" if change >= 0 else "減少"
+            return (f"{month1}總額 NT${total1_str}，{month2}總額 NT${total2_str}，"
+                    f"{month2}較{month1}{direction} NT${change_str}。")
+        else:
+            direction = "up" if change >= 0 else "down"
+            return (f"{month1} total NT${total1_str}; {month2} total NT${total2_str} "
+                    f"({direction} NT${change_str} from {month1}).")
+    
     def chat(self, question: str) -> str:
         """Main chat interface"""
         # Load fresh data with rolling 12-month window (force reload to get latest Excel data)
         all_data = self.data_loader.load_all_data(force_reload=True, use_rolling_window=True)
         stats = self.data_loader.get_summary_stats()
+
+        # Build structured month rollup for GPT to reference
+        monthly_rollup = {}
+        recent_months = []
+        consultant_flags = {}
+        comparison_summary = {}
+        months_with_data = []
+        months_without_data = []
+        month_order = []
+        latest_month_with_data = None
+        previous_month_with_data = None
+
+        rollup = {}
+
+        response_language = self._detect_response_language(question)
+
+        if hasattr(self.data_loader, 'build_monthly_rollup'):
+            try:
+                rollup = self.data_loader.build_monthly_rollup(limit_months=12)
+                monthly_rollup = rollup.get('by_month', {})
+                month_order = rollup.get('month_order', []) or list(monthly_rollup.keys())
+                rolling_totals = rollup.get('rolling_totals', {})
+                months_with_data = rollup.get('months_with_data', [])
+                months_without_data = rollup.get('months_without_data', [])
+
+                # Keep the most recent 6 months (even if empty) to control prompt size
+                if month_order:
+                    recent_months = month_order[-6:]
+
+                category_averages = rolling_totals.get('category_averages', {})
+                average_total = rolling_totals.get('average_total', 0)
+
+                if months_with_data:
+                    latest_month_with_data = months_with_data[-1]
+                    previous_month_with_data = months_with_data[-2] if len(months_with_data) > 1 else None
+
+                if latest_month_with_data:
+                    latest_data = monthly_rollup.get(latest_month_with_data, {})
+                    previous_data = monthly_rollup.get(previous_month_with_data, {}) if previous_month_with_data else {}
+
+                    latest_total = float(latest_data.get('total', 0))
+                    previous_total = float(previous_data.get('total', 0)) if previous_data else 0.0
+                    total_delta = latest_total - previous_total
+
+                    comparison_summary = {
+                        'latest_month_key': latest_month_with_data,
+                        'previous_month_key': previous_month_with_data,
+                        'latest_total': latest_total,
+                        'previous_total': previous_total,
+                        'delta_total': total_delta,
+                        'rolling_average_total': average_total
+                    }
+
+                    alerts = []
+                    latest_categories = latest_data.get('categories', {})
+                    previous_categories = previous_data.get('categories', {}) if previous_data else {}
+
+                    for category, latest_amount in latest_categories.items():
+                        latest_amount = float(latest_amount)
+                        rolling_avg = float(category_averages.get(category, 0)) if category_averages else 0.0
+                        prev_amount = float(previous_categories.get(category, 0)) if previous_categories else 0.0
+
+                        delta_vs_prev = latest_amount - prev_amount
+                        delta_vs_avg = (latest_amount - rolling_avg) if rolling_avg else None
+
+                        percent_vs_prev = (delta_vs_prev / prev_amount) if prev_amount else None
+                        percent_vs_avg = (delta_vs_avg / rolling_avg) if (rolling_avg and delta_vs_avg is not None) else None
+
+                        status = None
+                        trigger_reason = None
+
+                        if percent_vs_avg is not None and percent_vs_avg >= 0.2:
+                            status = 'above_average'
+                            trigger_reason = 'above rolling average'
+                        elif percent_vs_avg is not None and percent_vs_avg <= -0.25:
+                            status = 'below_average'
+                            trigger_reason = 'below rolling average'
+                        elif percent_vs_prev is not None and percent_vs_prev >= 0.2:
+                            status = 'spike_vs_previous'
+                            trigger_reason = 'spike vs previous month'
+                        elif percent_vs_prev is not None and percent_vs_prev <= -0.25:
+                            status = 'drop_vs_previous'
+                            trigger_reason = 'drop vs previous month'
+
+                        if status:
+                            alerts.append({
+                                'category': category,
+                                'status': status,
+                                'reason': trigger_reason,
+                                'latest_amount': latest_amount,
+                                'previous_amount': prev_amount,
+                                'rolling_average_amount': rolling_avg,
+                                'delta_vs_previous': delta_vs_prev,
+                                'delta_vs_average': delta_vs_avg,
+                                'percent_vs_previous': percent_vs_prev,
+                                'percent_vs_average': percent_vs_avg
+                            })
+
+                    consultant_flags = {
+                        'latest_month_key': latest_month_with_data,
+                        'alerts': alerts,
+                        'rolling_average_total': average_total,
+                        'previous_month_key': previous_month_with_data
+                    }
+                else:
+                    consultant_flags = {
+                        'latest_month_key': None,
+                        'alerts': [],
+                        'rolling_average_total': rolling_totals.get('average_total', 0),
+                        'note': 'No months with transactions yet.'
+                    }
+            except Exception as exc:
+                consultant_flags = {
+                    'error': f'Failed to build monthly rollup: {exc}'
+                }
+        
+        months_of_interest = self._extract_month_mentions(question, month_order)
+        if not months_of_interest and latest_month_with_data:
+            months_of_interest = [latest_month_with_data]
+        if not months_of_interest and month_order:
+            months_of_interest = month_order[-1:]
+        
+        precomputed_views = {}
+        if monthly_rollup:
+            summary_lines = []
+            for key in months_of_interest:
+                month_data = monthly_rollup.get(key, {})
+                summary_lines.append(self._format_month_summary(key, month_data, response_language))
+            precomputed_views['monthly_keys'] = months_of_interest
+            precomputed_views['monthly_summaries'] = "\n".join(summary_lines)
+        
+        if months_of_interest and len(months_of_interest) >= 2:
+            comparison_data = self.insight_generator.generate_comparison(months_of_interest[0], months_of_interest[1])
+            comparison_summary = comparison_data
+            precomputed_views['comparison'] = comparison_data
+            precomputed_views['comparison_summary'] = self._format_comparison_summary(comparison_data, response_language)
+        elif comparison_summary:
+            precomputed_views['comparison'] = comparison_summary
+            precomputed_views['comparison_summary'] = self._format_comparison_summary(comparison_summary, response_language)
+        else:
+            precomputed_views['comparison_summary'] = ""
+
+        if months_of_interest:
+            daily_category_summaries = {}
+            for key in months_of_interest:
+                daily_category_summaries[key] = self.insight_generator.generate_daily_category_summary(key)
+            precomputed_views['daily_category_summaries'] = daily_category_summaries
         
         # Build enriched data for LLM with proper labeling to prevent hallucination
         # Preserves keyword structure for data access (months, categories, etc.)
@@ -86,9 +339,38 @@ class BudgetChat(BaseModule):
             'categories': ['交通费', '伙食费', '休闲/娱乐', '家务', '其它'] if stats else [],
             # Add month names for easy reference (preserves Chinese month names)
             'month_names': ['一月', '二月', '三月', '四月', '五月', '六月', 
-                           '七月', '八月', '九月', '十月', '十一月', '十二月']
+                           '七月', '八月', '九月', '十月', '十一月', '十二月'],
+            'response_language': response_language,
+            'requested_months': months_of_interest
         }
         
+        if monthly_rollup:
+            enriched_data['monthly_rollup'] = monthly_rollup
+        if recent_months:
+            enriched_data['recent_months'] = recent_months
+
+        if rollup:
+            enriched_data['rolling_totals'] = rollup.get('rolling_totals', {})
+
+        if consultant_flags:
+            enriched_data['consultant_flags'] = consultant_flags
+
+        if comparison_summary:
+            enriched_data['comparison_summary'] = comparison_summary
+
+        if month_order:
+            enriched_data['month_order'] = month_order
+        if months_with_data is not None:
+            enriched_data['months_with_data'] = months_with_data
+        if months_without_data is not None:
+            enriched_data['months_without_data'] = months_without_data
+        if latest_month_with_data is not None:
+            enriched_data['latest_month_with_data'] = latest_month_with_data
+        if previous_month_with_data is not None:
+            enriched_data['previous_month_with_data'] = previous_month_with_data
+        if precomputed_views:
+            enriched_data['precomputed_views'] = precomputed_views
+
         # Add category breakdown if available in stats
         if stats and 'by_category' in stats:
             enriched_data['by_category'] = stats['by_category']  # Spending breakdown by category
@@ -158,7 +440,6 @@ class BudgetChat(BaseModule):
             file_path = self.data_loader.budget_file
         else:
             # Fallback to config
-            import config
             file_path = config.BUDGET_PATH
         
         # Display the full monthly sheet view

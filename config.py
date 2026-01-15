@@ -12,12 +12,13 @@ from datetime import datetime
 # ═══════════════════════════════════════════════════════════
 
 STRUCTURED_LLM = "qwen3:8b"      # Fast, structured tasks (parsing, categorization, data extraction)
-REASONING_LLM = "qwen3:8b"       # Use Qwen for both structured and reasoning tasks
-                                 # Simplified: Qwen only for natural language routing to existing functions
+REASONING_LLM = "gpt-oss:20b"    # Use GPT-OSS for reasoning/insight tasks
+                                 # Qwen handles structured tasks, GPT-OSS handles reasoning
 
 # Alternative models (uncomment to use):
 # REASONING_LLM = "qwen3:8b"       # Use Qwen for both (faster but less insightful)
-# STRUCTURED_LLM = "qwen2.5:14b"  # More powerful Qwen
+# STRUCTURED_LLM = "gpt-oss:20b"   # Larger GPT-OSS model
+# REASONING_LLM = "gpt-oss:20b"    # Use GPT-OSS for both structured and reasoning tasks
 # REASONING_LLM = "llama3:70b"     # Larger reasoning model
 
 LLM_CONFIG = {
@@ -26,11 +27,11 @@ LLM_CONFIG = {
         "timeout": 60,  # 1 minute for structured tasks
         "temperature": 0.1  # Deterministic for structured tasks
     },
-    "reasoning": {
-        "model": REASONING_LLM,
-        "timeout": 180,  # 3 minutes for GPT-OSS (receives pre-processed data from Qwen)
-        "temperature": 0.7  # Creative for reasoning
-    }
+"reasoning": {
+    "model": REASONING_LLM,
+    "timeout": 180,  # GPT-OSS gives richer reasoning; allow more time
+    "temperature": 0.7  # Restore expressive setting for GPT-OSS
+}
 }
 
 # ═══════════════════════════════════════════════════════════

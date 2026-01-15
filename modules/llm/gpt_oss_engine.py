@@ -69,6 +69,7 @@ class GptOssEngine(BaseLLM):
             personality += "6. For spending feedback/analysis, keep paragraphs SHORT (2-3 sentences max)\n"
         
         personality += "7. Be conversational, use contractions, and throw in some humor when appropriate\n"
+        personality += "8. When giving advice, organize thoughts in short sections so the user can skim\n"
         
         return personality
     
@@ -224,16 +225,52 @@ Keep it real, keep it short, keep it budget-focused. Always reference specific d
         data_source = data.get('data_source', 'Annual Excel Budget File')
         
         # Format data with clear labels for hallucination prevention
+        monthly_rollup = data.get('monthly_rollup', {})
+        rolling_totals = data.get('rolling_totals', {})
+        consultant_flags = data.get('consultant_flags', {})
+        comparison_summary = data.get('comparison_summary', {})
+        months_with_data = data.get('months_with_data', [])
+        months_without_data = data.get('months_without_data', [])
+        latest_month_with_data = data.get('latest_month_with_data')
+        recent_months = data.get('recent_months', [])
+        precomputed_views = data.get('precomputed_views', {})
+        requested_months = data.get('requested_months', [])
+        response_language = data.get('response_language', 'en')
+        precomputed_monthly = precomputed_views.get('monthly_summaries', '')
+        precomputed_comparison = precomputed_views.get('comparison_summary', '')
+
         data_context = f"""**Your Excel Budget Data (from {data_source}):**
 {data_summary[:800]}
 
 **Available Months in Excel:** {', '.join(available_months) if available_months else 'None'}
 
-**Data Structure (use these labels):**
-- stats: Statistics from Excel file
-- available_months: List of months with data (format: "2025-七月", "2025-八月", etc.)
-- by_category: Spending breakdown by category (交通费, 伙食费, 休闲/娱乐, 家务, 其它)
-- monthly_totals: Total spending per month"""
+**Structured Data (only use what you need):**
+- stats: Overall statistics from Excel
+- monthly_rollup: Recent months with totals + category spending (keys like '2025-十月')
+- rolling_totals: Rolling averages for totals and categories
+- consultant_flags: Pre-computed alerts for categories that spiked/dropped
+- comparison_summary: Latest vs previous month totals (delta_total etc.)
+- by_category / monthly_totals: Legacy breakdowns (still valid)
+
+**monthly_rollup (sample):** {str(list(monthly_rollup.items())[:2])[:400]}
+**consultant_flags:** {str(consultant_flags)[:300]}
+**comparison_summary:** {str(comparison_summary)[:200]}
+**Months with data:** {', '.join(months_with_data) if months_with_data else 'None'}
+**Months without data:** {', '.join(months_without_data) if months_without_data else 'None'}
+**Latest month with transactions:** {latest_month_with_data or 'None'}
+**Recent months (last 6):** {', '.join(recent_months) if recent_months else 'None'}
+**Requested months:** {', '.join(requested_months) if requested_months else 'None'}
+**Precomputed monthly summaries:** {precomputed_monthly or 'None'}
+**Precomputed comparison:** {precomputed_comparison or 'None'}
+**Daily category summaries:** {str(precomputed_views.get('daily_category_summaries', {}))[:400]}
+**Response language:** {response_language}
+- Use the daily_category_summaries to answer any “which day/category” questions; cite the exact day and amount.
+"""
+        
+        if response_language == 'zh-traditional':
+            language_instruction = "請全程使用繁體中文回覆，保持語氣自然。"
+        else:
+            language_instruction = "Respond in English only."
         
         prompt = f"""{personality_context}
 
@@ -242,13 +279,17 @@ Keep it real, keep it short, keep it budget-focused. Always reference specific d
 {data_context}
 
 **Your Response Style:**
-- Be concise but friendly
-- Use swear words sparingly for emphasis (if enabled)
-- Reference specific numbers from the Excel data above
-- Cite which month/category you're referencing (e.g., "In 七月, you spent NT$50k on 伙食费")
-- If spending is high, be direct but humorous: "Damn, you spent NT$50k on food this month? That's... a lot, bro."
-- Keep spending feedback short - 2-3 sentences max
-- Always base your answer on the Excel data - NEVER invent facts
+- {language_instruction}
+- Be concise but friendly, and use swear words sparingly for emphasis (if enabled).
+- Reference specific numbers from the Excel data above; cite the month/category you are referencing.
+- Always base your answer on the Excel data - NEVER invent facts.
+- Do NOT include your internal reasoning or planning steps—only the final paragraphs the user should read.
+- If the user asks for a month listed in "Months without data" or a month where monthly_rollup[...] has_data is False, clearly say that month has no recorded transactions and do not fabricate numbers.
+- Structure your reply as three short paragraphs (no bullet points):
+  1. Snapshot / headline numbers
+  2. Drivers or notable shifts (use the precomputed summaries)
+  3. Recommendations or next steps
+- Each paragraph should be 2-3 sentences max.
 
 Now answer the question using ONLY the data above:"""
         
@@ -273,10 +314,41 @@ Now answer the question using ONLY the data above:"""
             available_months = data.get('available_months', [])
             data_source = data.get('data_source', 'Annual Excel Budget File')
             
+            monthly_rollup = data.get('monthly_rollup', {})
+            consultant_flags = data.get('consultant_flags', {})
+            comparison_summary = data.get('comparison_summary', {})
+            months_with_data = data.get('months_with_data', [])
+            months_without_data = data.get('months_without_data', [])
+            latest_month_with_data = data.get('latest_month_with_data')
+            recent_months = data.get('recent_months', [])
+            precomputed_views = data.get('precomputed_views', {})
+            requested_months = data.get('requested_months', [])
+            response_language = data.get('response_language', 'en')
+            precomputed_monthly = precomputed_views.get('monthly_summaries', '')
+            precomputed_comparison = precomputed_views.get('comparison_summary', '')
+        
             data_context = f"""**Your Excel Budget Data (from {data_source}):**
 {data_summary[:800]}
 
-**Available Months in Excel:** {', '.join(available_months) if available_months else 'None'}"""
+**Available Months in Excel:** {', '.join(available_months) if available_months else 'None'}
+
+**monthly_rollup:** {str(list(monthly_rollup.items())[:2])[:400]}
+**consultant_flags:** {str(consultant_flags)[:250]}
+**comparison_summary:** {str(comparison_summary)[:200]}
+**Months with data:** {', '.join(months_with_data) if months_with_data else 'None'}
+**Months without data:** {', '.join(months_without_data) if months_without_data else 'None'}
+**Latest month with transactions:** {latest_month_with_data or 'None'}
+**Recent months (last 6):** {', '.join(recent_months) if recent_months else 'None'}
+**Requested months:** {', '.join(requested_months) if requested_months else 'None'}
+**Precomputed monthly summaries:** {precomputed_monthly or 'None'}
+**Precomputed comparison:** {precomputed_comparison or 'None'}
+**Daily category summaries:** {str(precomputed_views.get('daily_category_summaries', {}))[:400]}
+**Response language:** {response_language}"""
+        
+        if response_language == 'zh-traditional':
+            language_instruction = "請以繁體中文撰寫回覆，保持段落清楚。"
+        else:
+            language_instruction = "Respond in English only."
         
         prompt = f"""{personality_context}
 
@@ -291,7 +363,11 @@ You're analyzing spending patterns with personality and data-driven insights.
 2. What does the Excel data tell us? (Cite specific numbers from months/categories)
 3. What should the user do? (Be direct, humorous, but data-backed)
 
-Think through this, but keep your response concise and reference specific data from the Excel file:"""
+{language_instruction}
+If the user asks for a month listed in "Months without data" or a month where monthly_rollup[...] has_data is False, explicitly state that the sheet has no recorded transactions and do not invent figures.
+Use the daily_category_summaries to answer "which day/category" style questions—cite the exact day and amount.
+Do NOT reveal your internal reasoning or thought process—only provide the final three paragraphs the user should read.
+Think through this, but respond as three short paragraphs (no bullet points): Snapshot, Drivers, Recommendations. Each paragraph should be 2-3 sentences and reference specific data from the Excel file:"""
         
         return self.call_model(prompt)
 

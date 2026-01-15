@@ -280,12 +280,52 @@ class MonthlyMerger(BaseModule):
             merge_mode: If True, add to existing values; if False, overwrite existing values
         """
         from openpyxl import load_workbook
+        # #region agent log
+        import json
+        import time
+        def _debug_log(message, data, hypothesis_id):
+            try:
+                with open("/Users/peter/Desktop/Old_Projects/GitHub/Family_Budget_Agent/.cursor/debug.log", "a") as f:
+                    f.write(json.dumps({
+                        "sessionId": "debug-session",
+                        "runId": "pre-fix",
+                        "hypothesisId": hypothesis_id,
+                        "location": "modules/data/monthly_merger.py:append_to_month_tab",
+                        "message": message,
+                        "data": data,
+                        "timestamp": int(time.time() * 1000)
+                    }) + "\n")
+            except Exception:
+                pass
+        # #endregion
         
         # Load workbook
         wb = load_workbook(budget_file)
         
+        # #region agent log
+        _debug_log(
+            "append_to_month_tab entry",
+            {
+                "budget_file": budget_file,
+                "month_name": month_name,
+                "merge_mode": merge_mode,
+                "df_rows": int(len(df)),
+                "df_date_min": str(df["date"].min()) if "date" in df else None,
+                "df_date_max": str(df["date"].max()) if "date" in df else None
+            },
+            "A"
+        )
+        # #endregion
+        
         if month_name not in wb.sheetnames:
             print(f"  ❌ Sheet '{month_name}' not found in budget file")
+            # #region agent log
+            _debug_log(
+                "month sheet missing",
+                {"sheetnames": wb.sheetnames},
+                "D"
+            )
+            # #endregion
             return False
         
         ws = wb[month_name]
@@ -315,6 +355,17 @@ class MonthlyMerger(BaseModule):
             lambda x: x.groupby('main_category')['amount'].sum().to_dict()
         ).to_dict()
         
+        # #region agent log
+        _debug_log(
+            "daily_totals prepared",
+            {
+                "daily_count": int(len(daily_totals)),
+                "daily_sample_dates": [str(d) for d in sorted(list(daily_totals.keys()))[:5]]
+            },
+            "E"
+        )
+        # #endregion
+        
         mode_text = "merge mode (adding to existing)" if merge_mode else "overwrite mode (replacing existing)"
         print(f"\n  📅 Writing {len(daily_totals)} days to {month_name} (calendar-aligned, {mode_text})")
         
@@ -323,8 +374,23 @@ class MonthlyMerger(BaseModule):
         date_to_row = {}  # Maps date -> row number (1-based)
         
         # Scan rows 3-49 (the weekly blocks) to find dates in column A
+        non_empty_cells = 0
+        formula_cells = 0
+        sample_cells = []
         for row_num in range(3, 50):  # rows 3-49 (1-based)
             date_cell = ws.cell(row_num, 1).value  # Column A (1-based)
+            cell_obj = ws.cell(row_num, 1)
+            if date_cell is not None:
+                non_empty_cells += 1
+                if cell_obj.data_type == 'f':
+                    formula_cells += 1
+            if len(sample_cells) < 6:
+                sample_cells.append({
+                    "row": row_num,
+                    "value": str(date_cell) if date_cell is not None else None,
+                    "type": type(date_cell).__name__ if date_cell is not None else None,
+                    "data_type": cell_obj.data_type
+                })
             
             if date_cell:
                 # Handle datetime objects and date strings
@@ -347,7 +413,61 @@ class MonthlyMerger(BaseModule):
                 if date_key:
                     date_to_row[date_key] = row_num
         
+        # #region agent log
+        _debug_log(
+            "date scan results",
+            {
+                "non_empty_cells": non_empty_cells,
+                "formula_cells": formula_cells,
+                "sample_cells": sample_cells,
+                "date_to_row_count": int(len(date_to_row)),
+                "date_to_row_sample": [str(d) for d in sorted(list(date_to_row.keys()))[:5]]
+            },
+            "A"
+        )
+        # #endregion
+        
         print(f"  ✅ Found {len(date_to_row)} dates in Excel sheet")
+        
+        # Fallback: if no dates found, derive row mapping from calendar
+        if len(date_to_row) == 0:
+            import calendar
+            print("  ⚠️  No dates found in column A; using calendar fallback mapping")
+            calendar_cache = {}
+            for date_key in sorted(daily_totals.keys()):
+                year = date_key.year
+                month = date_key.month
+                cache_key = (year, month)
+                if cache_key not in calendar_cache:
+                    first_weekday, days_in_month = calendar.monthrange(year, month)
+                    calendar_cache[cache_key] = (first_weekday, days_in_month)
+                first_weekday, days_in_month = calendar_cache[cache_key]
+                
+                if date_key.day > days_in_month:
+                    continue
+                
+                offset = first_weekday + (date_key.day - 1)
+                week_index = offset // 7
+                weekday_index = offset % 7
+                
+                if week_index >= len(weekly_blocks):
+                    continue
+                
+                row_num = weekly_blocks[week_index][0] + weekday_index
+                date_to_row[date_key] = row_num
+            
+            # #region agent log
+            _debug_log(
+                "calendar fallback mapping",
+                {
+                    "fallback_count": int(len(date_to_row)),
+                    "fallback_sample_dates": [str(d) for d in sorted(list(date_to_row.keys()))[:5]]
+                },
+                "B"
+            )
+            # #endregion
+            
+            print(f"  ✅ Generated {len(date_to_row)} dates from calendar fallback")
         
         # Process each date
         written_count = 0

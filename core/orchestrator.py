@@ -132,6 +132,8 @@ class LLMOrchestrator:
             'food', 'transportation', 'entertainment', 'household', 'other',
             'total', 'sum', 'amount', 'payment', 'transaction', 'purchase',
             'trend', 'pattern', 'analysis', 'comparison', 'compare',
+            'chart', 'charts', 'graph', 'graphs', 'visual', 'visuals', 'visualize', 'visualise',
+            'plot', 'plots', 'donut', 'doughnut', 'pie', 'piechart', 'bar', 'line',
             'saving', 'save', 'financial', 'finance', 'costs', 'price',
             # Chinese keywords (preserves Chinese month/category access)
             '預算', '支出', '開銷', '花費', '金錢', '費用', '花錢', '花',
@@ -139,6 +141,7 @@ class LLMOrchestrator:
             '交通费', '伙食费', '休闲/娱乐', '休闲', '娱乐', '家务', '其它',
             '總', '總額', '總計', '合計', '金額', '數額',
             '趨勢', '比較', '對比', '分析', '統計',
+            '圖', '圖表', '圖形', '視覺化', '可視化', '圓餅圖', '甜甜圈', '長條圖', '折線圖',
             '節省', '省', '財務', '金融'
         ]
         

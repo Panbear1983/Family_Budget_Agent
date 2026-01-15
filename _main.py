@@ -253,7 +253,15 @@ def merge_budget_workflow(merger, annual_mgr):
             dolly_data = pd.DataFrame()  # Empty DataFrame
         
         # Step 5: Merge data (categorize, combine, deduplicate, show preview)
-        budget_file = annual_mgr.get_active_budget_file()
+        # Auto-detect year from transaction data (not current year)
+        combined_data = pd.concat([peter_data, dolly_data], ignore_index=True) if len(dolly_data) > 0 else peter_data
+        if 'date' in combined_data.columns and len(combined_data) > 0:
+            data_year = pd.to_datetime(combined_data['date']).dt.year.mode().iloc[0]
+            budget_file = annual_mgr.get_budget_file_path(data_year)
+            print(f"  📅 Detected data year: {data_year}")
+            print(f"  📂 Using budget file: {os.path.basename(budget_file)}")
+        else:
+            budget_file = annual_mgr.get_active_budget_file()
         
         success, count, merged_df = merger.execute_from_dataframes(
             peter_data, dolly_data, target_month, budget_file, merge_mode
@@ -323,50 +331,22 @@ def budget_chat_workflow(orchestrator, annual_mgr, budget_files):
     print("💬 預算分析對話 (BUDGET CHAT & INSIGHTS)\n")
     print("="*100 + "\n")
     
-    # Load simplified Qwen-based chat system
-    enhanced_mode = False
-    qwen_chat = None
-    multi_data_loader = None  # Initialize to None
-    
+    # Load multi-year data loader (shared across chat modes)
+    multi_data_loader = None
     try:
-        from core.qwen_orchestrator import QwenOrchestrator
-        from modules.insights.qwen_chat import QwenChat
         from modules.insights.multi_year_data_loader import MultiYearDataLoader
-        
-        # Initialize Qwen orchestrator
-        qwen_orchestrator = QwenOrchestrator()
-        qwen_orchestrator.initialize()
-        
-        # Use multi-year data loader
         multi_data_loader = MultiYearDataLoader(budget_files)
-        
-        # Initialize Qwen Chat
-        qwen_chat = QwenChat(
-            data_loader=multi_data_loader,
-            orchestrator=qwen_orchestrator
-        )
-        
-        enhanced_mode = True
-        
-        # Show year range
         min_year, max_year = multi_data_loader.get_year_range()
         if min_year and max_year:
-            print(f"✅ Qwen Chat mode (Multi-Year: {min_year}-{max_year})\n")
+            print(f"✅ Multi-Year data ready ({min_year}-{max_year})\n")
         else:
-            print("✅ Qwen Chat mode activated - Natural language routing to existing functions\n")
-            
+            print("✅ Multi-Year data loader initialized\n")
     except Exception as e:
-        print("⚠️  Qwen Chat module not available")
-        print(f"   Using basic chat mode (Reason: {e})\n")
+        print("⚠️  Multi-Year data loader not available")
+        print(f"   Falling back to single-year mode (Reason: {e})\n")
         import traceback
         traceback.print_exc()
-        enhanced_mode = False
-        # Still try to create multi_data_loader even if Qwen Chat fails
-        try:
-            from modules.insights.multi_year_data_loader import MultiYearDataLoader
-            multi_data_loader = MultiYearDataLoader(budget_files)
-        except Exception:
-            multi_data_loader = None
+        multi_data_loader = None
     
     # Get available data (filter to 2025+ only)
     if multi_data_loader:

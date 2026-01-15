@@ -19,8 +19,22 @@ def display_monthly_sheet_from_file(file_path, sheet_name):
     """Display a monthly sheet from specific file with rich formatting"""
     console = Console()
     
-    # Read the sheet
-    df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
+    # Read the sheet with error handling
+    try:
+        df = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
+    except TimeoutError:
+        console.print(f"[red]Error: Timeout reading file '{file_path}'[/red]")
+        console.print("[yellow]Possible causes:[/yellow]")
+        console.print("  • OneDrive is syncing - wait a moment and try again")
+        console.print("  • Excel has the file open - close it first")
+        console.print("  • File is very large - may take longer to load")
+        return
+    except FileNotFoundError:
+        console.print(f"[red]Error: File not found: {file_path}[/red]")
+        return
+    except Exception as e:
+        console.print(f"[red]Error reading file: {e}[/red]")
+        return
     
     # Find header row (contains "日期：", "星期:")
     header_row_idx = None
@@ -173,8 +187,22 @@ def display_monthly_sheet(sheet_name):
     """Display a monthly sheet with rich formatting (uses current year file)"""
     console = Console()
     
-    # Read the sheet
-    df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=sheet_name, header=None)
+    # Read the sheet with error handling
+    try:
+        df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=sheet_name, header=None)
+    except TimeoutError:
+        console.print(f"[red]Error: Timeout reading file '{EXCEL_FILE_PATH}'[/red]")
+        console.print("[yellow]Possible causes:[/yellow]")
+        console.print("  • OneDrive is syncing - wait a moment and try again")
+        console.print("  • Excel has the file open - close it first")
+        console.print("  • File is very large - may take longer to load")
+        return
+    except FileNotFoundError:
+        console.print(f"[red]Error: File not found: {EXCEL_FILE_PATH}[/red]")
+        return
+    except Exception as e:
+        console.print(f"[red]Error reading file: {e}[/red]")
+        return
     
     # Find header row (contains "日期：", "星期:")
     header_row_idx = None
@@ -384,8 +412,22 @@ def display_annual_summary(file_path=None):
     # Use provided file path or default to EXCEL_FILE_PATH
     excel_path = file_path if file_path else EXCEL_FILE_PATH
     
-    # Read all sheets
-    excel_file = pd.ExcelFile(excel_path)
+    # Read all sheets with error handling
+    try:
+        excel_file = pd.ExcelFile(excel_path)
+    except TimeoutError:
+        console.print(f"[red]Error: Timeout reading file '{excel_path}'[/red]")
+        console.print("[yellow]Possible causes:[/yellow]")
+        console.print("  • OneDrive is syncing - wait a moment and try again")
+        console.print("  • Excel has the file open - close it first")
+        console.print("  • File is very large - may take longer to load")
+        return
+    except FileNotFoundError:
+        console.print(f"[red]Error: File not found: {excel_path}[/red]")
+        return
+    except Exception as e:
+        console.print(f"[red]Error reading file: {e}[/red]")
+        return
     
     # Month names
     months = ['一月', '二月', '三月', '四月', '五月', '六月',
@@ -428,8 +470,12 @@ def display_annual_summary(file_path=None):
         
         month_count += 1
         is_last_month = (month_count == total_months)
-            
-        df = pd.read_excel(excel_path, sheet_name=month, header=None)
+        
+        try:
+            df = pd.read_excel(excel_path, sheet_name=month, header=None)
+        except (TimeoutError, FileNotFoundError, Exception) as e:
+            console.print(f"[yellow]Warning: Could not read sheet '{month}': {e}[/yellow]")
+            continue
         
         # Find 單項總額 row and show exactly what's in Excel
         for idx, row in df.iterrows():
@@ -483,7 +529,11 @@ def display_annual_summary(file_path=None):
         # Use first available month sheet to get row 64 label
         for month in months:
             if month in excel_file.sheet_names:
-                df = pd.read_excel(excel_path, sheet_name=month, header=None)
+                try:
+                    df = pd.read_excel(excel_path, sheet_name=month, header=None)
+                except (TimeoutError, FileNotFoundError, Exception) as e:
+                    console.print(f"[yellow]Warning: Could not read sheet '{month}' for row 64: {e}[/yellow]")
+                    continue
                 if len(df) > 63:  # Row 64 is index 63
                     row_64 = df.iloc[63]
                     

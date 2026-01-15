@@ -38,7 +38,8 @@ class InsightGenerator:
                     'category_breakdown': {},
                     'categories': {},  # Add categories key for compatibility
                     'total_spending': 0,
-                    'transaction_count': 0
+                    'transaction_count': 0,
+                    'has_data': False
                 }
             
             # Calculate category breakdown (handles empty DataFrames gracefully)
@@ -56,7 +57,8 @@ class InsightGenerator:
                 'category_breakdown': category_totals,
                 'categories': category_totals,  # Alias for GUI compatibility
                 'total_spending': total_spending,
-                'transaction_count': transaction_count
+                'transaction_count': transaction_count,
+                'has_data': transaction_count > 0
             }
         except Exception as e:
             return {
@@ -65,8 +67,50 @@ class InsightGenerator:
                 'categories': {},  # Alias for GUI compatibility
                 'total_spending': 0,
                 'transaction_count': 0,
+                'has_data': False,
                 'error': str(e)
             }
+    
+    def generate_daily_category_summary(self, month: str) -> Dict[str, Dict]:
+        """Return per-category daily spending stats for the requested month."""
+        try:
+            df = None
+            if hasattr(self.data_loader, 'load_all_data'):
+                all_data = self.data_loader.load_all_data()
+                if month in all_data:
+                    df = all_data[month]
+                elif '-' in month:
+                    month_name = month.split('-', 1)[1]
+                    df = all_data.get(month_name)
+            if df is None:
+                month_name = month.split('-', 1)[1] if '-' in month else month
+                df = self.data_loader.load_month(month_name)
+
+            if df is None or len(df) == 0 or 'date' not in df.columns or 'category' not in df.columns:
+                return {}
+
+            df = df.copy()
+            df['date'] = pd.to_datetime(df['date']).dt.date
+            if 'amount' not in df.columns:
+                return {}
+
+            daily_totals = df.groupby(['category', 'date'])['amount'].sum()
+            results: Dict[str, Dict] = {}
+
+            for category in daily_totals.index.get_level_values('category').unique():
+                cat_series = daily_totals.loc[category]
+                if not isinstance(cat_series, pd.Series):
+                    cat_series = pd.Series({cat_series.index: cat_series})
+                top_day = cat_series.idxmax()
+                results[category] = {
+                    'top_day': str(top_day),
+                    'top_amount': float(cat_series.loc[top_day]),
+                    'daily_totals': {str(day): float(value) for day, value in cat_series.items()}
+                }
+
+            return results
+        except Exception:
+            return {}
     
     def generate_yearly_summary(self, silent: bool = False) -> Dict:
         """Generate yearly summary with monthly trends"""
@@ -81,6 +125,8 @@ class InsightGenerator:
                 self.data_loader.load_all_data(force_reload=True, use_rolling_window=True)
             monthly_trend = {}
             category_totals = {}
+            months_with_data_keys: List[str] = []
+            months_without_data_keys: List[str] = []
             
             for month in available_months:
                 # Handle MultiYearDataLoader format (e.g., "2025-九月")
@@ -109,11 +155,14 @@ class InsightGenerator:
                         if category not in category_totals:
                             category_totals[category] = 0
                         category_totals[category] += amount
+                    months_with_data_keys.append(month)
+                else:
+                    months_without_data_keys.append(month)
             
             # Calculate additional statistics
             total_spending = sum(monthly_trend.values())
             avg_monthly_spending = total_spending / len(monthly_trend) if monthly_trend else 0
-            months_with_data = len([m for m in monthly_trend.values() if m > 0])
+            months_with_data = len(months_with_data_keys)
             
             return {
                 'monthly_trend': monthly_trend,
@@ -122,7 +171,9 @@ class InsightGenerator:
                 'avg_monthly_spending': avg_monthly_spending,
                 'months_with_data': months_with_data,
                 'category_breakdown': category_totals,  # Alias for compatibility
-                'available_months': available_months
+                'available_months': available_months,
+                'months_with_data_keys': months_with_data_keys,
+                'months_without_data_keys': months_without_data_keys
             }
         except Exception as e:
             return {
@@ -133,6 +184,8 @@ class InsightGenerator:
                 'months_with_data': 0,
                 'category_breakdown': {},
                 'available_months': [],
+                'months_with_data_keys': [],
+                'months_without_data_keys': [],
                 'error': str(e)
             }
     

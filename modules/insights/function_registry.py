@@ -343,6 +343,21 @@ class FunctionRegistry:
         
         try:
             df = self.data_loader.load_month(month)
+            if df is None and '-' in month:
+                month_name = month.split('-', 1)[1]
+                df = self.data_loader.load_month(month_name)
+            if df is None and hasattr(self.data_loader, 'load_all_data'):
+                all_data = self.data_loader.load_all_data()
+                if month in all_data:
+                    df = all_data[month]
+                elif '-' in month:
+                    month_name = month.split('-', 1)[1]
+                    df = all_data.get(month_name)
+
+            if df is None or len(df) == 0:
+                display_month = month.split('-', 1)[1] if '-' in month else month
+                return f"❌ No data available for {display_month}"
+
             self.visual_reporter.show_monthly_table(month, df)
             return "✅ Monthly table displayed"
         except Exception as e:
@@ -360,6 +375,21 @@ class FunctionRegistry:
         try:
             # Create a simple insights dict for category breakdown
             df = self.data_loader.load_month(month)
+            if df is None and '-' in month:
+                month_name = month.split('-', 1)[1]
+                df = self.data_loader.load_month(month_name)
+            if df is None and hasattr(self.data_loader, 'load_all_data'):
+                all_data = self.data_loader.load_all_data()
+                if month in all_data:
+                    df = all_data[month]
+                elif '-' in month:
+                    month_name = month.split('-', 1)[1]
+                    df = all_data.get(month_name)
+
+            if df is None or len(df) == 0:
+                display_month = month.split('-', 1)[1] if '-' in month else month
+                return f"❌ No data available for {display_month}"
+
             category_totals = df.groupby('category')['amount'].sum().to_dict()
             insights = {
                 'month': month,

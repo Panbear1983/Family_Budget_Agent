@@ -131,10 +131,12 @@ Question: {question}
 {data_summary[:500]}
 
 **Available Months:** {', '.join(available_months) if available_months else 'None'}
+**Precomputed daily category summaries:** {str(data.get('precomputed_views', {}).get('daily_category_summaries', {}))[:400]}
 
 **CRITICAL:** Only use numbers and facts from the data above. If the data doesn't contain the answer, say so clearly.
 
-Provide a concise, factual answer with specific numbers from the Excel file."""
+Provide a concise, factual answer with specific numbers from the Excel file.
+Do NOT include your reasoning steps or thought process—only output the final answer."""
         
         return self.call_model(prompt)
     

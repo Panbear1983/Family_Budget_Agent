@@ -5,7 +5,7 @@ Extends DataLoader to support continuous timeline analysis across years
 
 import pandas as pd
 from openpyxl import load_workbook
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from .data_loader import DataLoader
 
@@ -25,6 +25,15 @@ class MultiYearDataLoader(DataLoader):
         self.last_loaded = None
         self.ttl = 1800  # Cache for 30 minutes
         self.use_rolling_window = True  # Enable rolling 12-month window by default
+
+        # Month normalization helpers (Chinese, English, numeric)
+        self._month_names = ['一月', '二月', '三月', '四月', '五月', '六月',
+                             '七月', '八月', '九月', '十月', '十一月', '十二月']
+        self._english_month_map = {
+            'january': '一月', 'february': '二月', 'march': '三月', 'april': '四月',
+            'may': '五月', 'june': '六月', 'july': '七月', 'august': '八月',
+            'september': '九月', 'october': '十月', 'november': '十一月', 'december': '十二月'
+        }
         
         # Extract years from filenames
         self.years = []
@@ -299,6 +308,235 @@ class MultiYearDataLoader(DataLoader):
         print(f"✅ Total: {len(all_data)} months with {total_transactions} transactions")
         
         return all_data
+
+    # ------------------------------------------------------------------
+    # New helper methods for structured summaries
+    # ------------------------------------------------------------------
+
+    def _normalize_month_name(self, month: str) -> Optional[str]:
+        """Normalize various month inputs to Chinese month names."""
+        if not month:
+            return None
+
+        month = str(month).strip()
+
+        # Already a composite key like "2025-七月"
+        if '-' in month:
+            _, suffix = month.split('-', 1)
+            if suffix in self._month_names:
+                return suffix
+
+        lower = month.lower()
+
+        # Exact Chinese month name (case-insensitive check)
+        for cn in self._month_names:
+            if cn in month:
+                return cn
+
+        # English month names
+        if lower in self._english_month_map:
+            return self._english_month_map[lower]
+
+        # Numeric formats ("7", "07", "7月")
+        digit = ''.join(ch for ch in month if ch.isdigit())
+        if digit:
+            try:
+                idx = int(digit)
+                if 1 <= idx <= 12:
+                    return self._month_names[idx - 1]
+            except ValueError:
+                pass
+
+        return None
+
+    def _get_all_month_keys(self) -> List[str]:
+        """Return all month keys (YYYY-月份) available across loaded years."""
+        data = self._load_all_data_raw(force_reload=False)
+        return list(data.keys())
+
+    def resolve_month_key(self, month: str, year: Optional[int] = None) -> Optional[str]:
+        """Resolve user-supplied month (with optional year) to stored month key."""
+        if not month:
+            return None
+
+        all_keys = self._get_all_month_keys()
+        if not all_keys:
+            return None
+
+        # Direct match
+        if month in all_keys:
+            return month
+
+        month_name = self._normalize_month_name(month)
+        if not month_name:
+            return None
+
+        candidates = []
+        for key in all_keys:
+            try:
+                key_year_str, key_month = key.split('-', 1)
+                key_year = int(key_year_str)
+            except (ValueError, AttributeError):
+                continue
+
+            if key_month != month_name:
+                continue
+
+            if year is None or key_year == year:
+                candidates.append((key_year, key))
+
+        if not candidates:
+            return None
+
+        # Return the latest year match by default
+        candidates.sort()
+        return candidates[-1][1]
+
+    def build_monthly_rollup(self, *,
+                             use_rolling_window: bool = True,
+                             force_reload: bool = False,
+                             limit_months: Optional[int] = None) -> Dict[str, Dict[str, Dict]]:
+        """
+        Build structured summary for months within the rolling window.
+
+        Returns:
+            {
+                'by_month': {
+                    '2025-七月': {
+                        'year': 2025,
+                        'month': '七月',
+                        'total': 85211.0,
+                        'categories': {'伙食费': 30211.0, ...},
+                        'top_categories': [('伙食费', 30211.0), ...],
+                    },
+                    ...
+                },
+                'month_order': ['2025-七月', '2025-八月', ...],
+                'rolling_totals': {
+                    'average_total': 91234.0,
+                    'category_averages': {'伙食费': 28500.0, ...}
+                }
+            }
+        """
+
+        data = self.load_all_data(force_reload=force_reload, use_rolling_window=use_rolling_window)
+
+        month_keys = sorted(data.keys())
+        if limit_months and limit_months > 0:
+            month_keys = month_keys[-limit_months:]
+
+        by_month: Dict[str, Dict] = {}
+        category_totals: Dict[str, float] = {}
+        totals: List[float] = []
+        months_with_data: List[str] = []
+
+        for key in month_keys:
+            df = data.get(key)
+
+            if df is None or not hasattr(df, 'columns'):
+                # Ensure we still register the sheet even if something unexpected happens
+                df = pd.DataFrame(columns=['date', 'category', 'description', 'amount', 'person', 'year'])
+
+            try:
+                year_part, month_part = key.split('-', 1)
+                year_value = int(year_part)
+            except (ValueError, AttributeError):
+                year_value = None
+                month_part = key
+
+            has_amount_col = 'amount' in df.columns
+            has_category_col = 'category' in df.columns
+            transaction_count = int(len(df)) if df is not None else 0
+            has_data = transaction_count > 0 and has_amount_col
+
+            total = float(df['amount'].sum()) if has_amount_col else 0.0
+            categories_dict: Dict[str, float] = {}
+            top_categories: List[Tuple[str, float]] = []
+
+            if has_data and has_category_col:
+                categories_series = df.groupby('category')['amount'].sum()
+                categories_dict = {cat: float(amount) for cat, amount in categories_series.items()}
+                top_categories = sorted(categories_dict.items(), key=lambda item: item[1], reverse=True)[:3]
+
+                # Track category rollups for averages only when data exists
+                for cat, amount in categories_dict.items():
+                    category_totals[cat] = category_totals.get(cat, 0.0) + float(amount)
+
+                totals.append(total)
+                months_with_data.append(key)
+
+            by_month[key] = {
+                'year': year_value,
+                'month': month_part,
+                'total': total if has_amount_col else 0.0,
+                'categories': categories_dict,
+                'top_categories': top_categories,
+                'transaction_count': transaction_count,
+                'has_data': has_data,
+                'has_amounts': has_amount_col,
+            }
+
+        average_total = sum(totals) / len(totals) if totals else 0.0
+
+        category_averages = {
+            cat: amount / len(months_with_data) for cat, amount in category_totals.items()
+        } if months_with_data else {}
+
+        return {
+            'by_month': by_month,
+            'month_order': month_keys,
+            'months_with_data': months_with_data,
+            'months_without_data': [key for key in month_keys if key not in months_with_data],
+            'rolling_totals': {
+                'average_total': average_total,
+                'category_averages': category_averages,
+                'months_counted': len(months_with_data)
+            }
+        }
+
+    def compare_months(self,
+                       month_a: str,
+                       month_b: str,
+                       *,
+                       use_rolling_window: bool = True) -> Optional[Dict[str, Dict]]:
+        """Return comparison metrics (totals + category deltas) between two months."""
+
+        key_a = self.resolve_month_key(month_a)
+        key_b = self.resolve_month_key(month_b)
+
+        if not key_a or not key_b:
+            return None
+
+        rollup = self.build_monthly_rollup(use_rolling_window=use_rolling_window)
+        month_data = rollup['by_month']
+
+        data_a = month_data.get(key_a)
+        data_b = month_data.get(key_b)
+
+        if not data_a or not data_b:
+            return None
+
+        categories = set(data_a['categories'].keys()) | set(data_b['categories'].keys())
+        category_deltas: Dict[str, Dict[str, float]] = {}
+
+        for cat in categories:
+            val_a = float(data_a['categories'].get(cat, 0.0))
+            val_b = float(data_b['categories'].get(cat, 0.0))
+            delta = val_b - val_a
+            category_deltas[cat] = {
+                'month_a': val_a,
+                'month_b': val_b,
+                'delta': delta
+            }
+
+        total_delta = float(data_b['total']) - float(data_a['total'])
+
+        return {
+            'month_a': {**data_a, 'key': key_a},
+            'month_b': {**data_b, 'key': key_b},
+            'total_delta': total_delta,
+            'category_deltas': category_deltas
+        }
     
     def get_summary_stats(self) -> Dict:
         """Get summary statistics for rolling 12-month window"""

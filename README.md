@@ -382,8 +382,7 @@ Family_Budget_Agent/
 │   │   ├── gui_graphs.py    # Matplotlib charts
 │   │   ├── terminal_graphs.py # ASCII charts
 │   │   ├── visual_report_generator.py # Rich terminal reports
-│   │   ├── function_registry.py # Chat function registry
-│   │   └── qwen_chat.py     # Qwen-specific chat implementation
+│   │   └── function_registry.py # Chat function registry
 │   │
 │   └── llm/                 # LLM engines
 │       ├── base_llm.py      # LLM interface
@@ -406,11 +405,11 @@ Edit `config.py`:
 ```python
 # Current configuration (Qwen-only):
 STRUCTURED_LLM = "qwen3:8b"      # Fast structured tasks
-REASONING_LLM = "qwen3:8b"       # Use Qwen for both structured and reasoning tasks
+REASONING_LLM = "gpt-oss:20b"    # Deeper reasoning, advice with personality
 
 # Alternative options:
-# STRUCTURED_LLM = "qwen2.5:14b"  # Larger Qwen model
-# REASONING_LLM = "qwen2.5:14b"  # Use larger model for both
+# STRUCTURED_LLM = "gpt-oss:20b"  # Larger GPT-OSS model
+# REASONING_LLM = "gpt-oss:20b"   # Use GPT-OSS for both
 ```
 
 Restart → New models active!
@@ -796,10 +795,42 @@ Personal project - feel free to adapt for your own use.
 
 ---
 
-**Version:** 2.0.0  
-**Architecture:** Modular Plugin System with Qwen-Only AI  
-**LLM:** Qwen3:8b (all tasks)  
+**Version:** 1.2  
+**Architecture:** Modular Plugin System with Dual-LLM AI  
+**LLM:** Qwen3:8b (structured tasks) + GPT-OSS:20b (complex reasoning)  
 **Status:** Production Ready ✅  
+
+---
+
+## 📋 Version History
+
+### V1.2 (January 2026) - Dual Pipeline Enhancement
+
+**Major Changes:**
+- **Dual LLM Pipeline**: Added GPT-OSS:20b for complex reasoning and budget advice alongside Qwen3:8b for structured tasks
+- **Consolidated Chat Module**: Merged `qwen_chat.py` into `budget_chat.py` for cleaner architecture
+- **Enhanced Language Detection**: Improved bilingual support with automatic Traditional Chinese/English detection
+- **Smart Month Extraction**: Better parsing of month references from user questions (supports 一月, January, 1月 formats)
+- **Currency Formatting**: Consistent NT$ formatting with thousands separators across all outputs
+
+**New Features:**
+- Enhanced `InsightGenerator` with more detailed spending analysis
+- Expanded `FunctionRegistry` with additional budget query functions
+- Improved `MultiYearDataLoader` with better data caching and retrieval
+- Enhanced `GPT-OSS Engine` with personality system integration
+
+**Code Improvements:**
+- Streamlined `_main.py` with reduced complexity
+- Updated `config.py` with dual pipeline configuration options
+- Better error handling throughout insights modules
+- Removed deprecated code and unused imports
+
+**Configuration Updates:**
+```python
+# New dual-LLM configuration in config.py:
+STRUCTURED_LLM = "qwen3:8b"      # Fast structured tasks
+REASONING_LLM = "gpt-oss:20b"    # Deeper reasoning, advice with personality
+```
 
 ---
 
