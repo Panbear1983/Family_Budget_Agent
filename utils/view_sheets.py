@@ -6,6 +6,7 @@ Displays budget data with rich formatting
 
 import sys
 import os
+import re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
@@ -14,6 +15,67 @@ from rich.table import Table
 import config
 
 EXCEL_FILE_PATH = config.BUDGET_PATH
+
+CATEGORY_COL_INDICES = list(range(3, 9))  # D-I in 0-based pandas columns
+
+
+def _sum_categories(row):
+    """Sum expense categories D-I for a daily row."""
+    return sum(
+        float(row.iloc[i])
+        for i in CATEGORY_COL_INDICES
+        if i < len(row) and pd.notna(row.iloc[i]) and row.iloc[i] != 0
+    )
+
+
+def _format_expense_cells(row, thousands=False):
+    """Format category columns D-I for display."""
+    cells = []
+    for col_idx in CATEGORY_COL_INDICES:
+        if col_idx < len(row) and pd.notna(row.iloc[col_idx]) and row.iloc[col_idx] != 0:
+            val = int(row.iloc[col_idx])
+            cells.append(f'{val:,}' if thousands else str(val))
+        else:
+            cells.append('')
+    return cells
+
+
+def _format_expense_cells_from_totals(totals, thousands=True):
+    """Format pre-summed category totals for weekly/monthly rows."""
+    cells = []
+    for total in totals:
+        if total > 0:
+            cells.append(f'{int(total):,}' if thousands else str(int(total)))
+        else:
+            cells.append('')
+    return cells
+
+
+def _format_total(val, thousands=True):
+    if val is None or (isinstance(val, float) and pd.isna(val)) or val == 0:
+        return ''
+    try:
+        return f'{int(val):,}' if thousands else str(int(val))
+    except (ValueError, TypeError):
+        return str(val)
+
+
+def _is_daily_date(date_cell):
+    return bool(re.search(r'\d{4}-\d{2}-\d{2}', date_cell))
+
+
+def _sum_month_from_daily_rows(df):
+    """Sum each category and grand total from daily rows (source of truth)."""
+    totals = [0, 0, 0, 0, 0, 0]
+    for _, row in df.iterrows():
+        date_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ''
+        if not _is_daily_date(date_cell):
+            continue
+        for col_offset, col_idx in enumerate(CATEGORY_COL_INDICES):
+            if col_idx < len(row) and pd.notna(row.iloc[col_idx]) and row.iloc[col_idx] != 0:
+                totals[col_offset] += float(row.iloc[col_idx])
+    return totals, int(sum(totals))
+
 
 def display_monthly_sheet_from_file(file_path, sheet_name):
     """Display a monthly sheet from specific file with rich formatting"""
@@ -69,15 +131,6 @@ def display_monthly_sheet_from_file(file_path, sheet_name):
     # Collect all rows first to determine section breaks
     rows_to_add = []
     
-    def format_currency(val):
-        if pd.isna(val) or val == '' or val == 'nan':
-            return ''
-        try:
-            num = float(val)
-            return f'{num:,.0f}' if num != 0 else ''
-        except:
-            return ''
-    
     # Process rows starting from header row + 1
     for idx in range(header_row_idx + 1, len(df)):
         row = df.iloc[idx]
@@ -109,33 +162,51 @@ def display_monthly_sheet_from_file(file_path, sheet_name):
             if not is_summary:
                 continue
         
-        # Extract values
-        transport = format_currency(row.iloc[3]) if len(row) > 3 else ''
-        food = format_currency(row.iloc[4]) if len(row) > 4 else ''
-        leisure = format_currency(row.iloc[5]) if len(row) > 5 else ''
-        housework = format_currency(row.iloc[6]) if len(row) > 6 else ''
-        abang = format_currency(row.iloc[7]) if len(row) > 7 else ''
-        other = format_currency(row.iloc[8]) if len(row) > 8 else ''
-        daily_total = format_currency(row.iloc[10]) if len(row) > 10 else ''
-        
-        # Track monthly total
-        if is_monthly:
-            monthly_grand_total = daily_total
-        
-        # Collect rows with type information
-        if is_monthly:
+        if is_weekly:
+            date_cell = date_cell.replace('：', '').replace(':', '')
+            week_start_idx = header_row_idx + 1
+            for prev_idx in range(idx - 1, header_row_idx, -1):
+                if '周總額' in str(df.iloc[prev_idx, 0]):
+                    week_start_idx = prev_idx + 1
+                    break
+
+            week_totals = [0, 0, 0, 0, 0, 0]
+            for week_idx in range(week_start_idx, idx):
+                week_row = df.iloc[week_idx]
+                if _is_daily_date(str(week_row.iloc[0])):
+                    for col_offset, col_idx in enumerate(CATEGORY_COL_INDICES):
+                        val = week_row.iloc[col_idx] if col_idx < len(week_row) else 0
+                        if pd.notna(val) and val != 0:
+                            week_totals[col_offset] += val
+
+            week_grand_total = sum(week_totals)
+            if week_grand_total > 0:
+                rows_to_add.append({
+                    'cells': [date_cell, day_cell, *_format_expense_cells_from_totals(week_totals), _format_total(week_grand_total)],
+                    'type': 'weekly_total'
+                })
+        elif is_monthly:
+            month_totals = [0, 0, 0, 0, 0, 0]
+            for scan_idx in range(header_row_idx + 1, idx):
+                scan_row = df.iloc[scan_idx]
+                scan_date = str(scan_row.iloc[0]) if pd.notna(scan_row.iloc[0]) else ''
+                if _is_daily_date(scan_date):
+                    for col_offset, col_idx in enumerate(CATEGORY_COL_INDICES):
+                        val = scan_row.iloc[col_idx] if col_idx < len(scan_row) else 0
+                        if pd.notna(val) and val != 0:
+                            month_totals[col_offset] += val
+
+            month_grand_total = sum(month_totals)
+            monthly_grand_total = _format_total(month_grand_total)
             rows_to_add.append({
-                'cells': [date_cell, day_cell, transport, food, leisure, housework, abang, other, daily_total],
+                'cells': [date_cell, day_cell, *_format_expense_cells_from_totals(month_totals), monthly_grand_total],
                 'type': 'monthly_total'
             })
-        elif is_weekly:
-            rows_to_add.append({
-                'cells': [date_cell, day_cell, transport, food, leisure, housework, abang, other, daily_total],
-                'type': 'weekly_total'
-            })
         else:
+            expense_cols = _format_expense_cells(row, thousands=False)
+            daily_total = _format_total(_sum_categories(row))
             rows_to_add.append({
-                'cells': [date_cell[:10] if len(date_cell) > 10 else date_cell, day_cell, transport, food, leisure, housework, abang, other, daily_total],
+                'cells': [date_cell[:10] if len(date_cell) > 10 else date_cell, day_cell, *expense_cols, daily_total],
                 'type': 'regular'
             })
     
@@ -261,7 +332,9 @@ def display_monthly_sheet(sheet_name):
         # Skip rows without a date (except summary rows like 周總額, 單項總額)
         if not date_cell or date_cell == 'nan':
             continue
-        if '2025-' not in date_cell and '周總額' not in date_cell and '單項總額' not in date_cell:
+        # For daily rows, date_cell usually looks like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+        has_date = bool(re.search(r'\d{4}-\d{2}-\d{2}', date_cell))
+        if not has_date and '周總額' not in date_cell and '單項總額' not in date_cell:
             continue
         
         # Skip '月剩余額:' label row (value captured separately)
@@ -269,26 +342,11 @@ def display_monthly_sheet(sheet_name):
             continue
         
         # Clean up date format - take only the date part, not time
-        if '2025-' in date_cell and '00:00:00' in date_cell:
+        if re.search(r'\d{4}-', date_cell) and '00:00:00' in date_cell:
             date_cell = date_cell.split()[0]
         
-        # Format expense columns (no thousand separators for daily entries)
-        expense_cols = []
-        for col_idx in range(3, 9):  # Columns 3-8 are expense categories
-            if col_idx < len(row) and pd.notna(row.iloc[col_idx]) and row.iloc[col_idx] != 0:
-                expense_cols.append(str(int(row.iloc[col_idx])))
-            else:
-                expense_cols.append('')
-        
-        # Format total column (with thousand separators) - show exactly what's in Excel
-        total_cell = ''
-        if len(row) > 9 and pd.notna(row.iloc[9]) and row.iloc[9] != 0:
-            try:
-                total_cell = f'{int(row.iloc[9]):,}'
-            except (ValueError, TypeError):
-                total_cell = str(row.iloc[9])
-        else:
-            total_cell = ''
+        expense_cols = _format_expense_cells(row, thousands=False)
+        total_cell = _format_total(_sum_categories(row))
         
         # Check if this is a summary row
         if '周總額' in date_cell:
@@ -304,71 +362,38 @@ def display_monthly_sheet(sheet_name):
                     week_start_idx = prev_idx + 1
                     break
             
-            # Sum up the week's spending for each category
-            week_totals = [0, 0, 0, 0, 0, 0]  # 6 expense categories
+            week_totals = [0, 0, 0, 0, 0, 0]
             for week_idx in range(week_start_idx, idx):
                 week_row = df.iloc[week_idx]
-                week_date = str(week_row.iloc[0])
-                # Only sum rows with actual dates (2025-XX-XX)
-                if '2025-' in week_date:
-                    for col_idx in range(3, 9):
+                if _is_daily_date(str(week_row.iloc[0])):
+                    for col_offset, col_idx in enumerate(CATEGORY_COL_INDICES):
                         val = week_row.iloc[col_idx] if col_idx < len(week_row) else 0
                         if pd.notna(val) and val != 0:
-                            week_totals[col_idx - 3] += val
-            
-            # Format weekly totals with thousand separators
-            formatted_expenses = []
-            for total in week_totals:
-                if total > 0:
-                    formatted_expenses.append(f'{int(total):,}')
-                else:
-                    formatted_expenses.append('')
-            
-            # Calculate grand total for the week
+                            week_totals[col_offset] += val
+
             week_grand_total = sum(week_totals)
             if week_grand_total > 0:
-                total_cell = f'{int(week_grand_total):,}'
-            else:
-                total_cell = ''
-            
-            # Only show 周總額 row if there are actual numbers
-            if week_grand_total > 0:
                 rows_to_add.append({
-                    'cells': [date_cell, day_cell, *formatted_expenses, total_cell],
+                    'cells': [date_cell, day_cell, *_format_expense_cells_from_totals(week_totals), _format_total(week_grand_total)],
                     'style': 'bold blue',
                     'type': 'weekly_total'
                 })
             
         elif '單項總額' in date_cell:
-            # Capture the grand total value for display after the table
-            if len(row) > 10 and pd.notna(row.iloc[10]) and row.iloc[10] != 0:
-                try:
-                    monthly_grand_total = int(row.iloc[10])
-                except (ValueError, TypeError):
-                    monthly_grand_total = None
-            
-            # Show exactly what's in the Excel file (NO calculations)
-            formatted_expenses = []
-            for col_idx in range(3, 9):
-                if col_idx < len(row) and pd.notna(row.iloc[col_idx]) and row.iloc[col_idx] != 0:
-                    try:
-                        formatted_expenses.append(f'{int(row.iloc[col_idx]):,}')
-                    except (ValueError, TypeError):
-                        formatted_expenses.append(str(row.iloc[col_idx]))
-                else:
-                    formatted_expenses.append('')
-            
-            # Show total from Excel (NO calculation)
-            if len(row) > 10 and pd.notna(row.iloc[10]) and row.iloc[10] != 0:
-                try:
-                    total_cell = f'{int(row.iloc[10]):,}'
-                except (ValueError, TypeError):
-                    total_cell = str(row.iloc[10])
-            else:
-                total_cell = ''
-            
+            month_totals = [0, 0, 0, 0, 0, 0]
+            for scan_idx in range(header_row_idx + 1, idx):
+                scan_row = df.iloc[scan_idx]
+                scan_date = str(scan_row.iloc[0]) if pd.notna(scan_row.iloc[0]) else ''
+                if _is_daily_date(scan_date):
+                    for col_offset, col_idx in enumerate(CATEGORY_COL_INDICES):
+                        val = scan_row.iloc[col_idx] if col_idx < len(scan_row) else 0
+                        if pd.notna(val) and val != 0:
+                            month_totals[col_offset] += val
+
+            month_grand_total = sum(month_totals)
+            monthly_grand_total = month_grand_total if month_grand_total > 0 else None
             rows_to_add.append({
-                'cells': [date_cell, day_cell, *formatted_expenses, total_cell],
+                'cells': [date_cell, day_cell, *_format_expense_cells_from_totals(month_totals), _format_total(month_grand_total)],
                 'style': 'bold red',
                 'type': 'monthly_total'
             })
@@ -477,52 +502,29 @@ def display_annual_summary(file_path=None):
             console.print(f"[yellow]Warning: Could not read sheet '{month}': {e}[/yellow]")
             continue
         
-        # Find 單項總額 row and show exactly what's in Excel
-        for idx, row in df.iterrows():
-            if '單項總額' in str(row.iloc[0]):
-                # Extract values from Excel (NO calculation)
-                transport = row.iloc[3] if pd.notna(row.iloc[3]) and row.iloc[3] != 0 else 0
-                food = row.iloc[4] if pd.notna(row.iloc[4]) and row.iloc[4] != 0 else 0
-                leisure = row.iloc[5] if pd.notna(row.iloc[5]) and row.iloc[5] != 0 else 0
-                household = row.iloc[6] if pd.notna(row.iloc[6]) and row.iloc[6] != 0 else 0
-                abang = row.iloc[7] if pd.notna(row.iloc[7]) and row.iloc[7] != 0 else 0
-                other = row.iloc[8] if pd.notna(row.iloc[8]) and row.iloc[8] != 0 else 0
-                
-                # Get total from Excel (column K, index 10)
-                if len(row) > 10 and pd.notna(row.iloc[10]) and row.iloc[10] != 0:
-                    try:
-                        month_total = int(row.iloc[10])
-                        month_total_str = f'{month_total:,}'
-                        
-                        # Track totals for averages
-                        category_totals['transport'] += transport
-                        category_totals['food'] += food
-                        category_totals['leisure'] += leisure
-                        category_totals['household'] += household
-                        category_totals['abang'] += abang
-                        category_totals['other'] += other
-                        category_totals['monthly'] += month_total
-                        months_with_data += 1
-                        
-                    except (ValueError, TypeError):
-                        month_total_str = '-'
-                else:
-                    month_total_str = '-'
-                
-                # Format and add row (just formatting, no calculation)
-                # Add end_section to last month to create divider before row 64
-                summary_table.add_row(
-                    month,
-                    f'{int(transport):,}' if transport > 0 else '-',
-                    f'{int(food):,}' if food > 0 else '-',
-                    f'{int(leisure):,}' if leisure > 0 else '-',
-                    f'{int(household):,}' if household > 0 else '-',
-                    f'{int(abang):,}' if abang > 0 else '-',
-                    f'{int(other):,}' if other > 0 else '-',
-                    month_total_str,
-                    end_section=is_last_month
-                )
-                break
+        category_sums, month_total = _sum_month_from_daily_rows(df)
+        if month_total > 0:
+            transport, food, leisure, household, abang, other = category_sums
+            category_totals['transport'] += transport
+            category_totals['food'] += food
+            category_totals['leisure'] += leisure
+            category_totals['household'] += household
+            category_totals['abang'] += abang
+            category_totals['other'] += other
+            category_totals['monthly'] += month_total
+            months_with_data += 1
+
+            summary_table.add_row(
+                month,
+                f'{int(transport):,}' if transport > 0 else '-',
+                f'{int(food):,}' if food > 0 else '-',
+                f'{int(leisure):,}' if leisure > 0 else '-',
+                f'{int(household):,}' if household > 0 else '-',
+                f'{int(abang):,}' if abang > 0 else '-',
+                f'{int(other):,}' if other > 0 else '-',
+                f'{month_total:,}',
+                end_section=is_last_month
+            )
     
     # Add row 64 data (D64:K64) if it exists
     if len(months) > 0:
@@ -545,15 +547,11 @@ def display_annual_summary(file_path=None):
                     abang_64 = row_64.iloc[7] if len(row_64) > 7 and pd.notna(row_64.iloc[7]) and row_64.iloc[7] != 0 else 0
                     other_64 = row_64.iloc[8] if len(row_64) > 8 and pd.notna(row_64.iloc[8]) and row_64.iloc[8] != 0 else 0
                     
-                    # Get total from K64 (column 10)
-                    if len(row_64) > 10 and pd.notna(row_64.iloc[10]) and row_64.iloc[10] != 0:
-                        try:
-                            total_64 = int(row_64.iloc[10])
-                            total_64_str = f'{total_64:,}'
-                        except (ValueError, TypeError):
-                            total_64_str = '-'
-                    else:
-                        total_64_str = '-'
+                    row_64_categories = [
+                        transport_64, food_64, leisure_64, household_64, abang_64, other_64
+                    ]
+                    total_64 = int(sum(row_64_categories))
+                    total_64_str = f'{total_64:,}' if total_64 > 0 else '-'
                     
                     # Get label from column A (index 0) or use default
                     label_64 = str(row_64.iloc[0]) if pd.notna(row_64.iloc[0]) else '總計'

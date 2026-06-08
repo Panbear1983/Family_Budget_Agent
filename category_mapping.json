@@ -27,11 +27,48 @@
     }
   },
   
+  "main_categories": {
+    "交通費": {
+      "english": ["Transportation", "transport", "transit"],
+      "chinese": ["交通"],
+      "description_keywords": ["uber", "taxi", "bus", "mrt", "train", "fuel", "gas", "parking", "youbike"]
+    },
+    "伙食費": {
+      "english": ["Food", "food & drink", "meal"],
+      "chinese": ["伙食", "吃喝"],
+      "description_keywords": ["restaurant", "cafe", "lunch", "dinner", "breakfast", "grocery", "supermarket", "711", "familymart", "convenience"]
+    },
+    "休閒/娛樂": {
+      "english": ["Leisure & Entertainment", "entertainment", "leisure"],
+      "chinese": ["娛樂", "休閒", "交際"],
+      "description_keywords": ["movie", "cinema", "game", "netflix", "spotify", "travel", "trip", "hotel", "bar", "karaoke"]
+    },
+    "家務": {
+      "english": ["Home & Housing", "household", "utilities"],
+      "chinese": ["家務", "家用", "保養", "醫療", "電話", "治裝"],
+      "description_keywords": ["rent", "utility", "electricity", "water", "phone", "insurance", "clinic", "pharmacy", "doctor", "haircut", "clothing"]
+    },
+    "阿幫": {
+      "english": ["Pet"],
+      "chinese": ["寵物", "阿幫", "幫比"],
+      "description_keywords": ["vet", "pet", "dog", "cat", "feed", "grooming"]
+    },
+    "其它": {
+      "english": ["Others", "other", "misc"],
+      "chinese": ["其他", "雜", "分期"],
+      "description_keywords": []
+    }
+  },
+
+  "description_rules": {
+    "if_contains": {}
+  },
+
   "llm_fallback": {
-    "enabled": true,
+    "enabled": false,
     "model": "qwen3:8b",
     "confidence_threshold": 0.8,
-    "description": "Use LLM if category not found in mappings above"
+    "description": "LLM disabled — all categories hardcoded in person_specific_mappings above. Add new categories there manually."
   },
   
   "notes": {

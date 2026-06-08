@@ -203,14 +203,16 @@ class AnnualManager(BaseModule):
                 day_idx = start_weekday - 1  # 0-6 (Mon=0, Sun=6)
                 
                 for day_num in range(1, days_in_month + 1):
-                    date_str = f"{year}-{month_idx:02d}-{day_num:02d}"
+                    current_date = datetime(year, month_idx, day_num)
                     
                     if week_idx < len(week_blocks):
                         start_row, end_row = week_blocks[week_idx]
                         row_idx = start_row - 1 + day_idx
                         
-                        # Write date to column A (SAME as edit_cells.py)
-                        ws.cell(row=row_idx + 1, column=1, value=date_str)
+                        # Write date as datetime object to column A
+                        ws.cell(row=row_idx + 1, column=1, value=current_date)
+                        # Optional: set number format to match
+                        ws.cell(row=row_idx + 1, column=1).number_format = 'yyyy-mm-dd'
                     
                     # Move to next day (SAME logic)
                     day_idx += 1

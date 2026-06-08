@@ -6,15 +6,18 @@ All LLM engines must implement this interface
 from abc import abstractmethod
 from typing import Tuple, Any
 from core.base_module import BaseModule
-import subprocess
 
 class BaseLLM(BaseModule):
     """Base class for all LLM engines"""
-    
+
+    OLLAMA_URL = 'http://localhost:11434/api/generate'
+
     def __init__(self, config: dict = None):
         super().__init__(config)
         self.model_name = config.get('model', 'unknown')
-        self.timeout = config.get('timeout', 30)
+        self.timeout = config.get('timeout', 60)
+        self.temperature = config.get('temperature', 0.1)
+        self.num_ctx = config.get('num_ctx', 4096)
     
     def execute(self, task: str, *args, **kwargs) -> Any:
         """
@@ -96,17 +99,43 @@ class BaseLLM(BaseModule):
         return ""
     
     def _call_ollama(self, prompt: str) -> str:
-        """Helper to call Ollama"""
-        try:
-            result = subprocess.run(
-                ['ollama', 'run', self.model_name, prompt],
-                capture_output=True,
-                text=True,
-                timeout=self.timeout
-            )
-            return result.stdout.strip()
-        except subprocess.TimeoutExpired:
-            return f"ERROR: Timeout after {self.timeout}s"
-        except Exception as e:
-            return f"ERROR: {str(e)}"
+        """
+        Call Ollama via HTTP API (talks to the already-running server — no subprocess startup overhead).
+        Retries up to 3 times on empty or failed responses.
+        Temperature and num_ctx are passed per-call from instance settings.
+        """
+        import requests
+
+        payload = {
+            'model': self.model_name,
+            'prompt': prompt,
+            'stream': False,
+            'options': {
+                'temperature': self.temperature,
+                'num_ctx': self.num_ctx,
+            }
+        }
+
+        last_error = ''
+        for attempt in range(3):
+            try:
+                response = requests.post(
+                    self.OLLAMA_URL,
+                    json=payload,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                result = response.json().get('response', '').strip()
+                if result:
+                    return result
+                last_error = 'empty response'
+            except requests.exceptions.Timeout:
+                last_error = f"timeout after {self.timeout}s"
+            except requests.exceptions.ConnectionError:
+                last_error = "Ollama not reachable at localhost:11434 — is it running?"
+                break  # No point retrying a connection error
+            except Exception as e:
+                last_error = str(e)
+
+        return f"ERROR: {last_error}"
 

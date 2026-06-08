@@ -47,17 +47,22 @@ class DataLoader:
                         if row[0]:  # If date exists
                             date = row[0]
                             
-                            # SKIP SUMMARY ROWS - Only process actual datetime objects
+                            # SKIP SUMMARY ROWS - Handle both datetime objects and strings
                             if not isinstance(date, datetime):
-                                continue
+                                try:
+                                    # Try to convert if it's a string (e.g. "2025-01-01")
+                                    date = pd.to_datetime(date)
+                                    if pd.isna(date):
+                                        continue
+                                except:
+                                    continue
                             
-                            # FILTER BY YEAR - Only include 2025 data for 2025 reports
-                            # Note: Year filtering removed for performance - only 2025 data exists
-                            # if date.year != 2025:
-                            #     continue
-                            
-                            # SKIP rows with summary keywords (extra safety)
-                            date_str = str(date)
+                            # Ensure we have a date component for string formatting
+                            try:
+                                date_str = date.strftime('%Y-%m-%d')
+                            except:
+                                date_str = str(date)
+                                
                             if any(keyword in date_str for keyword in 
                                 ['周總額', '單項總額', '月總額', '總計', '年度明細', '周总额', '单项总额']):
                                 continue

@@ -14,14 +14,62 @@ class GptOssEngine(BaseLLM):
         """Initialize GPT-OSS engine"""
         if 'model' not in self.config:
             self.config['model'] = 'gpt-oss:20b'
-        
         self.model_name = self.config['model']
-        print(f"  🧠 GPT-OSS Engine loaded: {self.model_name}")
+        # Reasoning tasks: expressive temperature + large context window
+        if 'temperature' not in self.config:
+            self.config['temperature'] = 0.7
+        if 'num_ctx' not in self.config:
+            self.config['num_ctx'] = 8192
+        self.temperature = self.config['temperature']
+        self.num_ctx = self.config['num_ctx']
+        print(f"  🧠 GPT-OSS Engine loaded: {self.model_name} (temp={self.temperature}, ctx={self.num_ctx})")
     
     def call_model(self, prompt: str) -> str:
         """Call GPT-OSS model"""
         return self._call_ollama(prompt)
     
+    def _trim_context(self, data: dict, max_chars: int = 4000) -> str:
+        """
+        Build a focused data context string capped at max_chars.
+        If requested_months is set, only include rollup data for those months
+        to avoid flooding a 20B local model with irrelevant data.
+        """
+        requested_months = data.get('requested_months', [])
+        monthly_rollup = data.get('monthly_rollup', {})
+
+        # Filter rollup to requested months only (+ latest if none specified)
+        if requested_months:
+            filtered_rollup = {k: v for k, v in monthly_rollup.items()
+                               if any(m in k for m in requested_months)}
+        else:
+            # Default: last 4 months instead of 3
+            keys = sorted(monthly_rollup.keys())[-4:]
+            filtered_rollup = {k: monthly_rollup[k] for k in keys}
+
+        data_source = data.get('data_source', 'Annual Excel Budget File')
+        available_months = data.get('available_months', [])
+        months_with_data = data.get('months_with_data', [])
+        latest_month = data.get('latest_month_with_data', 'None')
+        consultant_flags = data.get('consultant_flags', {})
+        comparison_summary = data.get('comparison_summary', {})
+        precomputed_views = data.get('precomputed_views', {})
+
+        parts = [
+            f"Source: {data_source}",
+            f"Available months: {', '.join(available_months) if available_months else 'None'}",
+            f"Months with data: {', '.join(months_with_data) if months_with_data else 'None'}",
+            f"Latest month: {latest_month}",
+            f"Monthly rollup (relevant): {str(filtered_rollup)[:1500]}", # Increased from 600
+            f"Consultant flags: {str(consultant_flags)[:500]}",        # Increased from 300
+            f"Comparison summary: {str(comparison_summary)[:400]}",    # Increased from 200
+            f"Daily summaries: {str(precomputed_views.get('daily_category_summaries', {}))[:800]}", # Increased from 300
+        ]
+
+        context = '\n'.join(parts)
+        if len(context) > max_chars:
+            context = context[:max_chars] + '\n[... truncated to fit context window]'
+        return context
+
     def _get_personality_prompt(self) -> str:
         """
         Build personality context based on config
@@ -88,38 +136,29 @@ Transaction:
 - Amount: NT${amount}
 - AI suggestion: {qwen_guess}
 
-Categorize into ONE of these:
-- 交通费 (transportation)
-- 伙食费 (food/dining)  
-- 休闲/娱乐 (entertainment)
+Categorize into ONE of these Traditional Chinese categories:
+- 交通費 (transportation)
+- 伙食費 (food/dining)
+- 休閒/娛樂 (entertainment)
 - 家務 (household)
+- 阿幫 (pet)
 - 其它 (other)
 
-Think step by step:
-1. What type of expense is this?
-2. What's the primary purpose?
-3. Which category fits best?
-
 Respond: category|confidence|reasoning
+Example: 伙食費|0.95|This is clearly a food expense at a restaurant"""
 
-Example: 伙食费|0.95|This is clearly a food expense at a restaurant"""
-        
         response = self.call_model(prompt)
-        
-        # Parse response
+
         try:
             parts = response.split('|')
             if len(parts) >= 2:
-                category = parts[0].strip()
-                confidence = float(parts[1].strip())
-                return category, confidence
+                return parts[0].strip(), float(parts[1].strip())
         except:
             pass
-        
-        # Extract category from response
-        categories = ['交通费', '伙食费', '休闲/娱乐', '家务', '其它']
+
+        categories = ['交通費', '伙食費', '休閒/娛樂', '家務', '阿幫', '其它']
         category = next((c for c in categories if c in response), '其它')
-        return category, 0.9  # High confidence for GPT-OSS
+        return category, 0.9
     
     def check_duplicate(self, tx1: dict, tx2: dict) -> Tuple[bool, float]:
         """
@@ -218,54 +257,10 @@ Keep it real, keep it short, keep it budget-focused. Always reference specific d
         Answer complex questions with reasoning - Budget Advisor with personality
         """
         personality_context = self._get_personality_prompt()
-        
-        # Build data context with proper labeling (preserves keyword structure)
-        data_summary = str(data.get('stats', {}))
-        available_months = data.get('available_months', [])
-        data_source = data.get('data_source', 'Annual Excel Budget File')
-        
-        # Format data with clear labels for hallucination prevention
-        monthly_rollup = data.get('monthly_rollup', {})
-        rolling_totals = data.get('rolling_totals', {})
-        consultant_flags = data.get('consultant_flags', {})
-        comparison_summary = data.get('comparison_summary', {})
-        months_with_data = data.get('months_with_data', [])
-        months_without_data = data.get('months_without_data', [])
-        latest_month_with_data = data.get('latest_month_with_data')
-        recent_months = data.get('recent_months', [])
-        precomputed_views = data.get('precomputed_views', {})
-        requested_months = data.get('requested_months', [])
         response_language = data.get('response_language', 'en')
-        precomputed_monthly = precomputed_views.get('monthly_summaries', '')
-        precomputed_comparison = precomputed_views.get('comparison_summary', '')
+        months_without_data = data.get('months_without_data', [])
 
-        data_context = f"""**Your Excel Budget Data (from {data_source}):**
-{data_summary[:800]}
-
-**Available Months in Excel:** {', '.join(available_months) if available_months else 'None'}
-
-**Structured Data (only use what you need):**
-- stats: Overall statistics from Excel
-- monthly_rollup: Recent months with totals + category spending (keys like '2025-十月')
-- rolling_totals: Rolling averages for totals and categories
-- consultant_flags: Pre-computed alerts for categories that spiked/dropped
-- comparison_summary: Latest vs previous month totals (delta_total etc.)
-- by_category / monthly_totals: Legacy breakdowns (still valid)
-
-**monthly_rollup (sample):** {str(list(monthly_rollup.items())[:2])[:400]}
-**consultant_flags:** {str(consultant_flags)[:300]}
-**comparison_summary:** {str(comparison_summary)[:200]}
-**Months with data:** {', '.join(months_with_data) if months_with_data else 'None'}
-**Months without data:** {', '.join(months_without_data) if months_without_data else 'None'}
-**Latest month with transactions:** {latest_month_with_data or 'None'}
-**Recent months (last 6):** {', '.join(recent_months) if recent_months else 'None'}
-**Requested months:** {', '.join(requested_months) if requested_months else 'None'}
-**Precomputed monthly summaries:** {precomputed_monthly or 'None'}
-**Precomputed comparison:** {precomputed_comparison or 'None'}
-**Daily category summaries:** {str(precomputed_views.get('daily_category_summaries', {}))[:400]}
-**Response language:** {response_language}
-- Use the daily_category_summaries to answer any “which day/category” questions; cite the exact day and amount.
-"""
+        data_context = self._trim_context(data)
         
         if response_language == 'zh-traditional':
             language_instruction = "請全程使用繁體中文回覆，保持語氣自然。"
@@ -300,50 +295,19 @@ Now answer the question using ONLY the data above:"""
         Provide deep reasoning and advice - Budget Advisor style
         """
         personality_context = self._get_personality_prompt()
-        
+
         # Handle both dict and extracted data formats
         if isinstance(data, dict) and 'extracted' in data:
-            # This is from complex queries - Qwen extracted data
-            data_context = f"""**Extracted Data from Excel:**
-{data.get('extracted', '')}
-
-**Source:** {data.get('source', 'qwen3:8b')}"""
+            data_context = (
+                f"**Extracted Data from Excel:**\n{data.get('extracted', '')}\n"
+                f"**Source:** {data.get('source', 'qwen3:8b')}"
+            )
+            response_language = 'en'
+            months_without_data = []
         else:
-            # Standard data format
-            data_summary = str(data.get('stats', {}))
-            available_months = data.get('available_months', [])
-            data_source = data.get('data_source', 'Annual Excel Budget File')
-            
-            monthly_rollup = data.get('monthly_rollup', {})
-            consultant_flags = data.get('consultant_flags', {})
-            comparison_summary = data.get('comparison_summary', {})
-            months_with_data = data.get('months_with_data', [])
-            months_without_data = data.get('months_without_data', [])
-            latest_month_with_data = data.get('latest_month_with_data')
-            recent_months = data.get('recent_months', [])
-            precomputed_views = data.get('precomputed_views', {})
-            requested_months = data.get('requested_months', [])
             response_language = data.get('response_language', 'en')
-            precomputed_monthly = precomputed_views.get('monthly_summaries', '')
-            precomputed_comparison = precomputed_views.get('comparison_summary', '')
-        
-            data_context = f"""**Your Excel Budget Data (from {data_source}):**
-{data_summary[:800]}
-
-**Available Months in Excel:** {', '.join(available_months) if available_months else 'None'}
-
-**monthly_rollup:** {str(list(monthly_rollup.items())[:2])[:400]}
-**consultant_flags:** {str(consultant_flags)[:250]}
-**comparison_summary:** {str(comparison_summary)[:200]}
-**Months with data:** {', '.join(months_with_data) if months_with_data else 'None'}
-**Months without data:** {', '.join(months_without_data) if months_without_data else 'None'}
-**Latest month with transactions:** {latest_month_with_data or 'None'}
-**Recent months (last 6):** {', '.join(recent_months) if recent_months else 'None'}
-**Requested months:** {', '.join(requested_months) if requested_months else 'None'}
-**Precomputed monthly summaries:** {precomputed_monthly or 'None'}
-**Precomputed comparison:** {precomputed_comparison or 'None'}
-**Daily category summaries:** {str(precomputed_views.get('daily_category_summaries', {}))[:400]}
-**Response language:** {response_language}"""
+            months_without_data = data.get('months_without_data', [])
+            data_context = self._trim_context(data)
         
         if response_language == 'zh-traditional':
             language_instruction = "請以繁體中文撰寫回覆，保持段落清楚。"

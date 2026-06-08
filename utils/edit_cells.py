@@ -6,6 +6,7 @@ Allows manual editing of individual cells with preview and validation
 
 import sys
 import os
+import re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
@@ -16,8 +17,20 @@ from datetime import datetime, timedelta
 import calendar
 import config
 import openpyxl
+from utils.excel_totals import save_workbook_with_totals
 
 EXCEL_FILE_PATH = config.BUDGET_PATH
+
+def get_active_year() -> int:
+    """
+    Infer the year from the active workbook filename.
+    Expected: "{year}年開銷表（NT）.xlsx"
+    """
+    basename = os.path.basename(EXCEL_FILE_PATH)
+    m = re.search(r'(\d{4})年開銷表', basename)
+    if m:
+        return int(m.group(1))
+    return getattr(config, "CURRENT_YEAR", datetime.now().year)
 
 def get_days_in_month(month_name):
     """Get number of days in a month"""
@@ -27,8 +40,8 @@ def get_days_in_month(month_name):
     }
     month_num = month_map.get(month_name)
     if month_num:
-        # Assume year 2025
-        return calendar.monthrange(2025, month_num)[1]
+        year = get_active_year()
+        return calendar.monthrange(year, month_num)[1]
     return 31  # Default
 
 def get_month_number(month_name):
@@ -130,12 +143,12 @@ def autofill_dates_workflow(sheet_name):
         return
     
     # Generate date preview
+    year = get_active_year()
     console.print(f"\n✓ 已選擇: {weekdays[start_weekday - 1]}")
-    console.print(f"📆 月份: {sheet_name} (2025年)")
+    console.print(f"📆 月份: {sheet_name} ({year}年)")
     console.print(f"📊 本月天數: {days_in_month} 天\n")
     
     # Calculate dates
-    year = 2025
     first_date = datetime(year, month_num, 1)
     
     # Define the weekly blocks (row indices)
@@ -163,7 +176,8 @@ def autofill_dates_workflow(sheet_name):
     day_idx = current_weekday - 1  # 0-6 (Mon=0, Sun=6)
     
     for day_num in range(1, days_in_month + 1):
-        date_str = f"2025-{month_num:02d}-{day_num:02d}"
+        # FIX: Use datetime object instead of string for better data typing in Excel
+        current_date = datetime(year, month_num, day_num)
         
         if week_idx < len(week_blocks):
             start_row, end_row = week_blocks[week_idx]
@@ -173,7 +187,7 @@ def autofill_dates_workflow(sheet_name):
             dates_to_fill.append({
                 'row': row_idx,
                 'col': 0,  # Column A
-                'value': date_str,
+                'value': current_date,
                 'display': f"Row {row_idx + 1} (Week {week_idx + 1}, Day {day_idx + 1})"
             })
         
@@ -272,11 +286,12 @@ def edit_expenses_workflow(sheet_name):
     try:
         # Read the sheet
         df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=sheet_name, header=None)
+        active_year = get_active_year()
         
         # Get category labels from Row 2, Columns C-I
         row_2 = df.iloc[1]
         categories = []
-        for col_idx in range(2, 9):  # Columns C-I (indices 2-8)
+        for col_idx in range(3, 9):  # Columns D-I (indices 3-8)
             if col_idx < len(row_2):
                 label = str(row_2.iloc[col_idx]) if pd.notna(row_2.iloc[col_idx]) else f'Category {col_idx - 1}'
                 categories.append(label)
@@ -291,7 +306,7 @@ def edit_expenses_workflow(sheet_name):
             console.print("輸入 'done' 完成編輯 / Enter 'done' to finish\n")
             
             # Prompt for date
-            date_input = input("輸入日期 (Date, e.g., 2025-10-15): ").strip()
+            date_input = input(f"輸入日期 (Date, e.g., {active_year}-10-15): ").strip()
             
             if date_input.lower() == 'done':
                 break
@@ -301,12 +316,13 @@ def edit_expenses_workflow(sheet_name):
             
             # Validate date format
             try:
-                # Simple validation - check if it's a valid date format
-                if not date_input.startswith('2025-'):
-                    console.print("[red]日期格式錯誤，請使用 YYYY-MM-DD 格式 (Invalid date format)[/red]")
-                    continue
+                parsed_dt = datetime.strptime(date_input, "%Y-%m-%d")
             except:
-                console.print("[red]日期格式錯誤 (Invalid date format)[/red]")
+                console.print("[red]日期格式錯誤，請使用 YYYY-MM-DD 格式 (Invalid date format)[/red]")
+                continue
+
+            if parsed_dt.year != active_year:
+                console.print(f"[red]日期年份需為 {active_year}（目前編輯的是該年份的表）[/red]")
                 continue
             
             # Find the row with this date in column A
@@ -348,7 +364,7 @@ def edit_expenses_workflow(sheet_name):
                 continue
             
             # Calculate column index (C=2, D=3, E=4, F=5, G=6, H=7, I=8)
-            col_idx = 2 + (cat_num - 1)
+            col_idx = 3 + (cat_num - 1)
             
             # Get old value
             old_val = df.iloc[date_row, col_idx] if pd.notna(df.iloc[date_row, col_idx]) else 0
@@ -364,6 +380,7 @@ def edit_expenses_workflow(sheet_name):
             })
             
             console.print(f"[green]✓ 已添加: {date_input} - {categories[cat_num - 1]} = {amount}[/green]")
+            console.print("[dim]─── 繼續輸入下一筆，或輸入 'done' 完成 (Next entry or 'done' to finish) ───[/dim]")
         
         if not edits:
             console.print("[yellow]未進行任何編輯 (No edits made)[/yellow]")
@@ -407,8 +424,7 @@ def apply_expense_edits(sheet_name, edits):
             cell = ws.cell(row=excel_row, column=excel_col)
             cell.value = edit['value']
         
-        # Save
-        wb.save(EXCEL_FILE_PATH)
+        save_workbook_with_totals(wb, EXCEL_FILE_PATH, sheet_names=[sheet_name])
         wb.close()
         
         console.print(f"\n[bold green]✅ 支出已保存！已編輯 {len(edits)} 筆資料 (Expenses saved! {len(edits)} entries edited)[/bold green]\n")

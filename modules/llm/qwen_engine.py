@@ -14,13 +14,19 @@ class QwenEngine(BaseLLM):
         """Initialize Qwen engine"""
         if 'model' not in self.config:
             self.config['model'] = 'qwen3:8b'
-        
         self.model_name = self.config['model']
-        print(f"  🤖 Qwen Engine loaded: {self.model_name}")
-    
+        # Structured tasks: deterministic + larger context window than Ollama default (2048)
+        if 'temperature' not in self.config:
+            self.config['temperature'] = 0.1
+        if 'num_ctx' not in self.config:
+            self.config['num_ctx'] = 4096
+        self.temperature = self.config['temperature']
+        self.num_ctx = self.config['num_ctx']
+        print(f"  🤖 Qwen Engine loaded: {self.model_name} (temp={self.temperature}, ctx={self.num_ctx})")
+
     def call_model(self, prompt: str) -> str:
-        """Call Qwen model"""
-        return self._call_ollama(prompt)
+        """Call Qwen model — prepend /no_think to skip chain-of-thought for structured tasks"""
+        return self._call_ollama(f"/no_think\n{prompt}")
     
     def categorize(self, transaction: dict) -> Tuple[str, float]:
         """
@@ -29,42 +35,38 @@ class QwenEngine(BaseLLM):
         desc = transaction.get('description', '')
         original_cat = transaction.get('category', '')
         
-        # Build prompt
         prompt = f"""Categorize this transaction into ONE category.
 
 Description: {desc}
 Original Category: {original_cat}
 
 Choose ONLY from these categories:
-- 交通费 (transportation)
-- 伙食费 (food/dining)
-- 休闲/娱乐 (entertainment)
-- 家务 (household)
+- 交通費 (transportation)
+- 伙食費 (food/dining)
+- 休閒/娛樂 (entertainment)
+- 家務 (household)
+- 阿幫 (pet)
 - 其它 (other)
 
-Respond ONLY with the Chinese category name and confidence (0-1).
+Respond ONLY with the Traditional Chinese category name and confidence (0-1).
 Format: category|confidence
 
-Example: 伙食费|0.95"""
-        
+Example: 伙食費|0.95"""
+
         response = self.call_model(prompt)
-        
-        # Parse response
+
         try:
             if '|' in response:
-                category, conf_str = response.split('|')
-                category = category.strip()
-                confidence = float(conf_str.strip())
+                parts = response.split('|')
+                category = parts[0].strip()
+                confidence = float(parts[1].strip())
             else:
-                # Extract category from response
-                categories = ['交通费', '伙食费', '休闲/娱乐', '家务', '其它']
+                categories = ['交通費', '伙食費', '休閒/娛樂', '家務', '阿幫', '其它']
                 category = next((c for c in categories if c in response), '其它')
-                confidence = 0.7  # Moderate confidence if format unclear
-            
+                confidence = 0.7
             return category, confidence
-        
         except:
-            return '其它', 0.5  # Low confidence fallback
+            return '其它', 0.5
     
     def check_duplicate(self, tx1: dict, tx2: dict) -> Tuple[bool, float]:
         """
@@ -93,9 +95,10 @@ Example: 伙食费|0.95"""
         """
         Calculate statistical summary (Qwen's strength)
         """
+        # Increased limit from 500 to 2000
         prompt = f"""Analyze this budget data and provide statistics.
 
-Data: {str(data)[:500]}  
+Data: {str(data)[:2000]}  
 
 Calculate:
 1. Total spending
@@ -119,7 +122,8 @@ Return as structured data."""
         Answer simple data queries - Brief responses with data citation
         """
         # Extract labeled data for hallucination prevention
-        data_summary = str(data.get('stats', {}))
+        # Increased limit from 500 to 2500
+        data_summary = str(data.get('stats', {}))[:2500]
         available_months = data.get('available_months', [])
         data_source = data.get('data_source', 'Annual Excel Budget File')
         
@@ -128,10 +132,10 @@ Return as structured data."""
 Question: {question}
 
 **Excel Budget Data (from {data_source}):**
-{data_summary[:500]}
+{data_summary}
 
 **Available Months:** {', '.join(available_months) if available_months else 'None'}
-**Precomputed daily category summaries:** {str(data.get('precomputed_views', {}).get('daily_category_summaries', {}))[:400]}
+**Precomputed daily category summaries:** {str(data.get('precomputed_views', {}).get('daily_category_summaries', {}))[:1000]}
 
 **CRITICAL:** Only use numbers and facts from the data above. If the data doesn't contain the answer, say so clearly.
 
@@ -144,10 +148,11 @@ Do NOT include your reasoning steps or thought process—only output the final a
         """
         Extract relevant data for a question
         """
+        # Increased limit from 500 to 2000
         prompt = f"""Extract data needed to answer this question.
 
 Question: {question}
-Data: {str(data)[:500]}
+Data: {str(data)[:2000]}
 
 Return relevant numbers, categories, and dates."""
         

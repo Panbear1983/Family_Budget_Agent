@@ -45,7 +45,8 @@ ONEDRIVE_PATH = "/Users/peter/Library/CloudStorage/OneDrive-Personal/Documents"
 CURRENT_YEAR = datetime.now().year
 
 # Main budget file (auto-determined by year)
-BUDGET_FILE = "2025年開銷表（NT）.xlsx"
+# Keep in sync with AnnualManager.get_budget_file_path()
+BUDGET_FILE = f"{CURRENT_YEAR}年開銷表（NT）.xlsx"
 BUDGET_PATH = os.path.join(ONEDRIVE_PATH, BUDGET_FILE)
 
 # Category mapping
@@ -61,7 +62,8 @@ MERGE_CONFIG = {
     "auto_detect_month": True,       # Detect from filename or data
     "require_preview": True,         # Show preview before applying
     "auto_backup": True,             # Always backup before update
-    "duplicate_strategy": "llm_assisted"  # Use LLM for fuzzy matching
+    "duplicate_strategy": "llm_assisted",  # Use LLM for fuzzy matching
+    "same_person_dedup_tolerance": 0  # NT$ tolerance for same-person exact dedup (0 = exact match only)
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -163,10 +165,10 @@ EXCEL_STRUCTURE = {
         "date": 1,           # Column A
         "day_of_week": 2,    # Column B
         "empty": 3,          # Column C (spacing)
-        "交通费": 4,          # Column D
-        "伙食费": 5,          # Column E
-        "休闲/娱乐": 6,       # Column F
-        "家务": 7,            # Column G
+        "交通費": 4,          # Column D
+        "伙食費": 5,          # Column E
+        "休閒/娛樂": 6,       # Column F
+        "家務": 7,            # Column G
         "阿幫": 8,            # Column H
         "其它": 9,            # Column I
         "notes": 10,         # Column J (optional)

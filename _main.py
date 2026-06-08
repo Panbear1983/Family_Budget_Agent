@@ -6,6 +6,7 @@ Simplified, dictionary-driven, dual-LLM collaboration
 
 import os
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -71,9 +72,10 @@ def initialize_system():
 def main_menu():
     """Display main menu"""
     console = Console()
+    current_year = datetime.now().year
     print("="*100)
     print("\n📋 主選單 MAIN MENU:\n")
-    console.print("   [[green]1[/green]] 📊 查看 2025 年預算表 (View 2025 Budget)")
+    console.print(f"   [[green]1[/green]] 📊 查看 {current_year} 年預算表 (View {current_year} Budget)")
     console.print("   [[green]2[/green]] 📥 更新每月預算 (Update Monthly Budget - Me + Wife)")
     console.print("   [[green]3[/green]] 💬 預算分析對話 (Budget Chat & Insights)")
     console.print("   [[green]4[/green]] ⚙️  系統工具 (System Tools)")
@@ -178,34 +180,78 @@ def merge_budget_workflow(merger, annual_mgr):
     
     # Step 1: Get file paths
     print("請輸入文件路徑 (Enter file paths):\n")
-    peter_file = input("Peter's file: ").strip()
+    peter_file = input("Peter's file (or press Enter to skip): ").strip()
     dolly_file = input("Dolly's file (or press Enter to skip): ").strip()
-    
-    # Validate Peter's file exists
-    if not os.path.exists(peter_file):
+
+    # At least one file must be provided
+    if not peter_file and not dolly_file:
+        print("\n❌ 至少需要一個文件 (At least one file required)")
+        input("\n按 Enter 返回...")
+        return
+
+    # Validate Peter's file if provided
+    if peter_file and not os.path.exists(peter_file):
         print(f"\n❌ 文件不存在: {peter_file}")
         input("\n按 Enter 返回...")
         return
-    
-    # Dolly's file is optional
+
+    # Validate Dolly's file if provided
     if dolly_file and not os.path.exists(dolly_file):
         print(f"\n❌ 文件不存在: {dolly_file}")
         input("\n按 Enter 返回...")
         return
     
-    # Step 2: Select target month
+    # Step 2: Select destination budget year (lead-up to parsing)
+    print("\n" + "="*100)
+    print("\n選擇預算年份 (Select budget year):\n")
+
+    current_year = datetime.now().year
+    candidate_years = sorted({current_year - 1, current_year, current_year + 1})
+
+    for i, year in enumerate(candidate_years, 1):
+        file_path = annual_mgr.get_budget_file_path(year)
+        exists = os.path.exists(file_path)
+        status = "已存在" if exists else "尚未建立"
+        print(f"   {i:2d}. {year}年  {os.path.basename(file_path)}  ({status})")
+
+    print("\n" + "="*100)
+    year_choice = input(f"\n選擇年份 (Choose 1-{len(candidate_years)}): ").strip()
+
+    try:
+        year_idx = int(year_choice)
+        if not 1 <= year_idx <= len(candidate_years):
+            raise ValueError
+        selected_year = candidate_years[year_idx - 1]
+    except:
+        print("\n❌ 無效選擇 (Invalid year)")
+        input("\n按 Enter 返回...")
+        return
+
+    # Ensure workbook exists (create if needed)
+    budget_file, created = annual_mgr.execute(selected_year)
+    if not budget_file:
+        print("\n❌ 找不到或無法建立預算檔案")
+        input("\n按 Enter 返回...")
+        return
+
+    print(
+        f"\n  ✅ Using budget year: {selected_year}年 ({os.path.basename(budget_file)})"
+        f"{' (created)' if created else ''}"
+    )
+
+    # Step 3: Select target month
     print("\n" + "="*100)
     print("\n選擇目標月份 (Select target month):\n")
-    
-    months = ['一月', '二月', '三月', '四月', '五月', '六月', 
+
+    months = ['一月', '二月', '三月', '四月', '五月', '六月',
              '七月', '八月', '九月', '十月', '十一月', '十二月']
-    
+
     for i, month in enumerate(months, 1):
         print(f"   {i:2d}. {month}")
-    
+
     print("\n" + "="*100)
     month_choice = input("\n選擇月份 (Choose month 1-12): ").strip()
-    
+
     try:
         month_num = int(month_choice)
         if not 1 <= month_num <= 12:
@@ -215,14 +261,16 @@ def merge_budget_workflow(merger, annual_mgr):
         print("\n❌ 無效月份 (Invalid month)")
         input("\n按 Enter 返回...")
         return
-    
-    # Step 3: Choose import mode
+
+    # Step 4: Choose import mode
     print("\n" + "="*100)
     print("\n選擇導入模式 (Choose import mode):\n")
     print("  1. 覆蓋模式 (Overwrite mode) - 替換所有數據 (Replace all data)")
     print("  2. 合併模式 (Merge mode) - 添加到現有數據 (Add to existing data)")
+    print("  3. 清空後覆蓋 (Wipe + Overwrite) - 先清空當月再覆蓋 (Wipe month then replace all)")
     print("\n" + "="*100)
-    mode_choice = input("\n選擇模式 (Choose mode 1-2): ").strip()
+    mode_choice = input("\n選擇模式 (Choose mode 1-3): ").strip()
+    wipe_first = False
     
     if mode_choice == '1':
         merge_mode = False
@@ -230,6 +278,10 @@ def merge_budget_workflow(merger, annual_mgr):
     elif mode_choice == '2':
         merge_mode = True
         print("  ✅ 合併模式 (Merge mode) - 將添加到現有數據")
+    elif mode_choice == '3':
+        merge_mode = False
+        wipe_first = True
+        print("  ✅ 清空後覆蓋 (Wipe + Overwrite) - 將先清空本月再覆蓋寫入")
     else:
         print("\n❌ 無效選擇 (Invalid choice)")
         input("\n按 Enter 返回...")
@@ -240,28 +292,45 @@ def merge_budget_workflow(merger, annual_mgr):
     
     try:
         parser = registry.get_module('FileParser')
+
+        # Optional: wipe month tab before parsing/writing (Wipe + Overwrite mode)
+        if wipe_first:
+            print("\n" + "="*100)
+            print("⚠️  WIPE CONFIRMATION".center(100))
+            print("="*100)
+            print(f"\nYou are about to wipe ALL input cells (D-I) in:")
+            print(f"  - File: {os.path.basename(budget_file)}")
+            print(f"  - Month tab: {target_month}")
+            print("\nThis cannot be undone (except via OneDrive/Excel version history).")
+            confirm_wipe = input("\nType 'WIPE' to confirm, or press Enter to cancel: ").strip()
+            if confirm_wipe != "WIPE":
+                print("\n❌ Cancelled wipe. No changes made.")
+                input("\n按 Enter 返回...")
+                return
+
+            wipe_ok = merger.wipe_month_tab(target_month, budget_file)
+            if not wipe_ok:
+                print("\n❌ Wipe failed. Aborting import to avoid partial state.")
+                input("\n按 Enter 返回...")
+                return
         
-        # Parse Peter's file
-        peter_data = parser.execute(peter_file, person='peter')
-        
-        # Parse Dolly's file only if provided
+        # Parse Peter's file if provided
+        if peter_file:
+            peter_data = parser.execute(peter_file, person='peter')
+        else:
+            print("  ⏭️  Skipping Peter's file")
+            peter_data = pd.DataFrame()
+
+        # Parse Dolly's file if provided
         if dolly_file:
             dolly_data = parser.execute(dolly_file, person='wife')
             print(f"  ✅ Dolly's data: {len(dolly_data)} transactions")
         else:
             print("  ⏭️  Skipping Dolly's file")
-            dolly_data = pd.DataFrame()  # Empty DataFrame
+            dolly_data = pd.DataFrame()
         
         # Step 5: Merge data (categorize, combine, deduplicate, show preview)
-        # Auto-detect year from transaction data (not current year)
-        combined_data = pd.concat([peter_data, dolly_data], ignore_index=True) if len(dolly_data) > 0 else peter_data
-        if 'date' in combined_data.columns and len(combined_data) > 0:
-            data_year = pd.to_datetime(combined_data['date']).dt.year.mode().iloc[0]
-            budget_file = annual_mgr.get_budget_file_path(data_year)
-            print(f"  📅 Detected data year: {data_year}")
-            print(f"  📂 Using budget file: {os.path.basename(budget_file)}")
-        else:
-            budget_file = annual_mgr.get_active_budget_file()
+        # budget_file is already selected by the user (Step 2) so we can parse into that year.
         
         success, count, merged_df = merger.execute_from_dataframes(
             peter_data, dolly_data, target_month, budget_file, merge_mode
@@ -271,10 +340,34 @@ def merge_budget_workflow(merger, annual_mgr):
             print(f"\n❌ 合并失败: {merged_df}")
             input("\n按 Enter 返回...")
             return
+
+        # Verify transaction year matches the budget year the user chose.
+        # If there's a mismatch, require an explicit proceed decision.
+        try:
+            if 'date' in merged_df and len(merged_df) > 0:
+                parsed_years = pd.to_datetime(merged_df['date'], errors='coerce').dt.year.dropna()
+                if len(parsed_years) > 0:
+                    parsed_year = int(parsed_years.mode().iloc[0])
+                    if parsed_year != selected_year:
+                        print(
+                            f"\n  ⚠️  Transactions look like {parsed_year}年, "
+                            f"but you selected {selected_year}年."
+                        )
+                        proceed = input(
+                            f"  Proceed writing to {selected_year} anyway? (y/n): "
+                        ).strip().lower()
+                        if proceed != 'y':
+                            print("\n❌ Cancelled. No changes made.")
+                            input("\n按 Enter 返回...")
+                            return
+        except Exception:
+            pass
         
         # Step 5: Confirm before applying
         print("\n" + "="*100)
-        confirm = input(f"\n✅ Write {count} transactions to {target_month}? (y/n): ").strip().lower()
+        confirm = input(
+            f"\n✅ Write {count} transactions to {target_month} in {os.path.basename(budget_file)}? (y/n): "
+        ).strip().lower()
         
         if confirm != 'y':
             print("\n❌ Cancelled. No changes made.")
@@ -282,7 +375,7 @@ def merge_budget_workflow(merger, annual_mgr):
             return
         
         # Step 6: Write to budget file
-        print(f"\n🔄 Writing to {target_month}...")
+        print(f"\n🔄 Writing to {target_month} in {os.path.basename(budget_file)}...")
         
         # Apply to budget file
         write_success = merger.append_to_month_tab(merged_df, target_month, budget_file, merge_mode)
@@ -300,6 +393,99 @@ def merge_budget_workflow(merger, annual_mgr):
     
     input("\n按 Enter 返回...")
 
+def wipe_month_workflow(merger, annual_mgr):
+    """Wipe month input grid only (no parsing/import)."""
+    import os
+    from datetime import datetime
+
+    print("\n🧹 清空月份資料 (WIPE MONTH ONLY)\n")
+    print("="*100 + "\n")
+
+    # Step 1: Select destination budget year
+    print("\n" + "="*100)
+    print("\n選擇預算年份 (Select budget year):\n")
+
+    current_year = datetime.now().year
+    candidate_years = sorted({current_year - 1, current_year, current_year + 1})
+
+    for i, year in enumerate(candidate_years, 1):
+        file_path = annual_mgr.get_budget_file_path(year)
+        exists = os.path.exists(file_path)
+        status = "已存在" if exists else "尚未建立"
+        print(f"   {i:2d}. {year}年  {os.path.basename(file_path)}  ({status})")
+
+    print("\n" + "="*100)
+    year_choice = input(f"\n選擇年份 (Choose 1-{len(candidate_years)}): ").strip()
+
+    try:
+        year_idx = int(year_choice)
+        if not 1 <= year_idx <= len(candidate_years):
+            raise ValueError
+        selected_year = candidate_years[year_idx - 1]
+    except:
+        print("\n❌ 無效選擇 (Invalid year)")
+        input("\n按 Enter 返回...")
+        return
+
+    budget_file, created = annual_mgr.execute(selected_year)
+    if not budget_file:
+        print("\n❌ 找不到或無法建立預算檔案")
+        input("\n按 Enter 返回...")
+        return
+
+    print(
+        f"\n  ✅ Using budget year: {selected_year}年 ({os.path.basename(budget_file)})"
+        f"{' (created)' if created else ''}"
+    )
+
+    # Step 2: Select month
+    print("\n" + "="*100)
+    print("\n選擇要清空的月份 (Select month to wipe):\n")
+
+    months = ['一月', '二月', '三月', '四月', '五月', '六月',
+             '七月', '八月', '九月', '十月', '十一月', '十二月']
+
+    for i, month in enumerate(months, 1):
+        print(f"   {i:2d}. {month}")
+
+    print("\n" + "="*100)
+    month_choice = input("\n選擇月份 (Choose month 1-12): ").strip()
+
+    try:
+        month_num = int(month_choice)
+        if not 1 <= month_num <= 12:
+            raise ValueError
+        target_month = months[month_num - 1]
+    except:
+        print("\n❌ 無效月份 (Invalid month)")
+        input("\n按 Enter 返回...")
+        return
+
+    # Step 3: Confirmation
+    print("\n" + "="*100)
+    print("⚠️  WIPE MONTH CONFIRMATION".center(100))
+    print("="*100)
+    print(f"\nYou are about to wipe ALL input cells (D-I) in:")
+    print(f"  - File: {os.path.basename(budget_file)}")
+    print(f"  - Month tab: {target_month}")
+    print("\nThis does NOT parse/import any file. It only clears month input cells.")
+    print("This cannot be undone (except via OneDrive/Excel version history).")
+
+    confirm_wipe = input("\nType 'WIPE' to confirm, or press Enter to cancel: ").strip()
+    if confirm_wipe != "WIPE":
+        print("\n❌ Cancelled wipe. No changes made.")
+        input("\n按 Enter 返回...")
+        return
+
+    # Step 4: Execute wipe
+    wipe_ok = merger.wipe_month_tab(target_month, budget_file)
+    if wipe_ok:
+        print(f"\n✅ Wipe complete for {target_month} in {os.path.basename(budget_file)}")
+    else:
+        print("\n❌ Wipe failed")
+
+    input("\n按 Enter 返回...")
+
 def update_monthly_workflow(merger, annual_mgr):
     """Update monthly budget - submenu for different update modes"""
     console = Console()
@@ -309,6 +495,7 @@ def update_monthly_workflow(merger, annual_mgr):
         
         console.print("   [[green]1[/green]] ✏️  逐格编辑 (Edit Cell-by-Cell)")
         console.print("   [[green]2[/green]] 📊 合并家庭预算表 (Merge Family Budget Sheets)")
+        console.print("   [[green]3[/green]] 🧹 清空月份資料 (Wipe Month Only)")
         console.print("   [[green]x[/green]] 返回 (Back)")
         
         print("\n" + "="*100)
@@ -320,6 +507,9 @@ def update_monthly_workflow(merger, annual_mgr):
         elif choice == '2':
             # Merge family budget sheets
             merge_budget_workflow(merger, annual_mgr)
+        elif choice == '3':
+            # Wipe month only
+            wipe_month_workflow(merger, annual_mgr)
         elif choice == 'x':
             return
         else:
